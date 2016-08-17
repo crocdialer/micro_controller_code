@@ -22,7 +22,7 @@ const int g_update_interval = 33;
 
 char g_serial_buf[512];
 
-//! time managment
+//! time management
 const int g_update_interval_params = 2000;
 int g_time_accum = 0, g_time_accum_params = 0;
 long g_last_time_stamp;
