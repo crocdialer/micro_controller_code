@@ -10,7 +10,7 @@
 #include "utils.h"
 #include "RunningMedian.h"
 
-#define USE_SPI 1
+#define USE_SPI 0
 
 #define SERIAL_END_CODE '\n'
 #define SERIAL_BUFSIZE 512
@@ -22,11 +22,11 @@ uint32_t g_update_interval = 33;
 bool g_indicator = false;
 
 // the number of attached SPI sensors
-const uint8_t g_max_num_sensors = 4;
+const uint8_t g_max_num_sensors = 1;
 uint8_t g_num_sensors = 0;
 
 // the array of SPI chip-select pins
-const uint8_t g_cs_pins[g_max_num_sensors] = {9, 10, 11, 12};
+const uint8_t g_cs_pins[] = {9, 10, 11, 12};
 
 Adafruit_LIS3DH g_sensors[g_max_num_sensors];
 sensors_event_t g_sensor_event;
@@ -119,8 +119,8 @@ void loop()
             strcat(g_serial_buf, g_num_buf);
             strcat(g_serial_buf, " ");
         }
-        g_serial_buf[strlen(g_serial_buf)] = '\0';
-        strcat(g_serial_buf, "\n");
+        g_serial_buf[strlen(g_serial_buf) - 1] = '\n';
+        // strcat(g_serial_buf, "\n");
 
         // sprintf(g_serial_buf, "%s\n", g_num_buf);
         Serial.write(g_serial_buf);

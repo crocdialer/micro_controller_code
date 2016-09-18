@@ -50,8 +50,9 @@ void display_digit(uint32_t the_digit, uint8_t the_anode, uint8_t the_cathode_ba
 void display_number(uint16_t the_number)
 {
     display_digit(the_number, 0, 0);
-    display_digit((the_number / 10), 1, 1);
+    display_digit((the_number / 10), 1, 0);
     display_digit((the_number / 100), 2, 0);
+    display_digit((the_number / 1000), 3, 0);
 }
 
 void clear()
@@ -70,14 +71,15 @@ void loop()
     if(g_time_accum >= g_update_interval)
     {
         g_time_accum = 0;
-        g_counter = (g_counter + 1) % 1000;
+        g_counter = (g_counter + 1) % 10000;
     }
 
     // test counter
-    // g_current_value = g_counter;
+    g_current_value = g_counter;
 
     // show something
-    display_number(g_current_value);
+    // display_number(g_current_value);
+    display_number(millis() / 100);
 }
 
 
