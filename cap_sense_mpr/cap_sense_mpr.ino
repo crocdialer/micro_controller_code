@@ -2,7 +2,7 @@
 #include "Adafruit_MPR121.h"
 #include "utils.h"
 
-#define USE_BLUETOOTH
+// #define USE_BLUETOOTH
 
 // bluetooth communication
 #ifdef USE_BLUETOOTH
