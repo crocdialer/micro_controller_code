@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include "Adafruit_MPR121.h"
+#include "RunningMedian.h"
 #include "utils.h"
 
 // #define USE_BLUETOOTH
@@ -38,6 +39,9 @@ bool g_bt_initialized = false;
 const uint8_t g_i2c_adresses[] = {0x5A, 0x5B, 0x5C, 0x5D};
 
 Adafruit_MPR121 g_cap_sensors[NUM_SENSORS];
+
+const uint16_t g_num_samples = 5;
+RunningMedian g_proxy_medians[NUM_SENSORS];
 
 //! contains a continuous measure for proximity
 float g_proxy_values[NUM_SENSORS];
@@ -94,9 +98,11 @@ void setup()
         g_cap_sensors[i].setMode(Adafruit_MPR121::PROXI_01);
 
         g_touch_buffer[i] = 0;
+
+        g_proxy_medians[i] = RunningMedian(g_num_samples);
     }
 
-    while(!has_uart()){ blink_status_led(); }
+    // while(!has_uart()){ blink_status_led(); }
     Serial.begin(57600);
 
     digitalWrite(13, LOW);
@@ -119,11 +125,15 @@ void loop()
     for(uint8_t i = 0; i < NUM_SENSORS; i++)
     {
         int16_t base_value = g_cap_sensors[i].baselineData(12);
-        int16_t diff_to_base = base_value - (int16_t)g_cap_sensors[i].filteredData(12);
-        float val = max(0.f, diff_to_base / (float)g_thresh_touch);
+        g_proxy_medians[i].add(base_value - (int16_t)g_cap_sensors[i].filteredData(12));
+        int16_t diff_to_base = g_proxy_medians[i].getMedian();
 
+        const float decay_secs = .35f;
+        float decay = 1.f / decay_secs * delta_time / 1000.f;
+        g_proxy_values[i] = max(0, g_proxy_values[i] - decay);
+
+        float val = clamp<float>(diff_to_base / 100.f, 0.f, 1.f);
         if(g_proxy_values[i] < val){ g_proxy_values[i] = val; }
-        else{ g_proxy_values[i] = mix<float>(g_proxy_values[i], 0.f, 0.01f); }
 
         // touch_states |= (g_cap_sensors[i].touched() ? 1 : 0) << i;
 

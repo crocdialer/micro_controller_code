@@ -24,7 +24,7 @@
 #include "ADC_Sampler.h"
 
 #define LED_PIN 12
-#define NUM_LEDS 8
+#define NUM_LEDS 64
 #define BRIGHTNESS 50
 #define BAT_PIN A7
 #define MIC_PIN A1
@@ -33,6 +33,9 @@
 
 #define ADC_BITS 10
 const float ADC_MAX = (1 << ADC_BITS) - 1.f;
+
+#define ARM_MATH_CM0
+#include <arm_math.h>} // this header appears to have screwed braces!?
 
 const int g_update_interval = 20;
 
@@ -129,7 +132,7 @@ void print_battery_lvl()
     Serial.println(measuredvbat);
 }
 
-static inline uint32_t mix_colors(uint32_t lhs, uint32_t rhs, float ratio)
+static inline uint32_t colors_mix(uint32_t lhs, uint32_t rhs, float ratio)
 {
     uint8_t *ptr_lhs = (uint8_t*) &lhs, *ptr_rhs = (uint8_t*) &rhs;
 
@@ -137,6 +140,15 @@ static inline uint32_t mix_colors(uint32_t lhs, uint32_t rhs, float ratio)
             mix<uint32_t>(ptr_lhs[b_offset], ptr_rhs[b_offset], ratio) << 16 |
             mix<uint32_t>(ptr_lhs[r_offset], ptr_rhs[r_offset], ratio) << 8 |
             mix<uint32_t>(ptr_lhs[g_offset], ptr_rhs[g_offset], ratio);
+}
+
+static inline uint32_t color_add(uint32_t lhs, uint32_t rhs)
+{
+    uint8_t *ptr_lhs = (uint8_t*) &lhs, *ptr_rhs = (uint8_t*) &rhs;
+    return  min((uint32_t)ptr_lhs[w_offset] + (uint32_t)ptr_rhs[w_offset], 255) << 24 |
+            min((uint32_t)ptr_lhs[b_offset] + (uint32_t)ptr_rhs[b_offset], 255) << 16 |
+            min((uint32_t)ptr_lhs[r_offset] + (uint32_t)ptr_rhs[r_offset], 255) << 8 |
+            min((uint32_t)ptr_lhs[g_offset] + (uint32_t)ptr_rhs[g_offset], 255);
 }
 
 static inline uint32_t fade_color(uint32_t the_color, float the_fade_value)
@@ -206,7 +218,18 @@ void blink_status_led()
 
 // lightbarrier handling
 volatile bool g_barrier_lock = false;
-volatile long g_barrier_timestamp = 0;
+volatile uint32_t g_barrier_timestamp = 0;
+volatile uint32_t g_tick_count = 0;
+uint32_t g_current_sample_rate = 0;
+
+void process_mic_input(uint32_t the_delta_time);
+
+class no_interrupt
+{
+public:
+    no_interrupt(){ noInterrupts(); }
+    ~no_interrupt(){ interrupts(); }
+};
 
 void barrier_ISR()
 {
@@ -221,6 +244,7 @@ void adc_callback(uint32_t the_sample)
         g_mic_signal_min = min(g_mic_signal_min, the_sample);
         g_mic_signal_max = max(g_mic_signal_max, the_sample);
     }
+    g_tick_count++;
 }
 
 void setup()
@@ -254,7 +278,7 @@ void setup()
     digitalWrite(13, LOW);
 
     g_adc_sampler.set_adc_callback(&adc_callback);
-    g_adc_sampler.begin(MIC_PIN, 22200);
+    g_adc_sampler.begin(MIC_PIN, 22050);
 }
 
 void loop()
@@ -272,7 +296,7 @@ void loop()
     // sensors_event_t accel, mag, gyro, temp;
     // g_lsm.getEvent(&accel, &mag, &gyro, &temp);
 
-    process_mic_input();
+    process_mic_input(delta_time);
 
     // g_mic_lvl = g_barrier_lock ? 1.f : 0.f;
 
@@ -280,24 +304,29 @@ void loop()
     {
         g_time_accum = 0;
 
-        float gain = 6.f;
-        // gain = map_value<float>(analogRead(POTI_PIN) / ADC_MAX,
-        //                         0.f, 1.f, 0.f, 8.f);
-        float val = clamp<float>(g_mic_lvl * gain, 0.f, 1.f);
+        float gain = 12.f;
+        uint32_t pot_val = 0;
+        {
+            // scope is interrupt free
+            no_interrupt ni;
+            pot_val = adc_read(POTI_PIN);
+            gain = map_value<float>(pot_val, 145, 885, 0.f, 12.f);
+        }
+        float val = smoothstep(0.f, 1.f, clamp<float>(g_mic_lvl * gain, 0.f, 1.f));
         int num_leds = val * NUM_LEDS;
 
         //WBRG
         // uint32_t color = 0 << 24 | 0 << 16 | 0 << 8 | 255;
-        uint32_t color = PURPLE;
-        color = fade_color(g_barrier_lock ? PURPLE : ORANGE, val);
+        uint32_t color = color_add(PURPLE, ORANGE);
+        color = fade_color(ORANGE, val);
         // print_battery_lvl();
 
         for(int i = 0; i < NUM_LEDS; i++){ g_pixels[i] = i < num_leds ? color : 0; }
         g_strip->show();
 
-        sprintf(g_serial_buf, "peak to peak: %d\n", g_mic_peak_to_peak);
-        Serial.write(g_serial_buf);
-        // Serial.println(g_mic_lvl);
+        // sprintf(g_serial_buf, "sample rate: %d\n", g_current_sample_rate);
+        // sprintf(g_serial_buf, "poti: %d\n", analogRead(A3));
+        // Serial.write(g_serial_buf);
     }
 }
 
@@ -313,29 +342,34 @@ uint32_t convert_distance(uint32_t the_measurement, SharpIR_Model the_model)
         case GP2Y0A02YK:
             ret = 65.f * pow(volts, -1.1f);
             break;
-
-        case GP2Y0A710K0F:
-            // ret = map(the_measurement, 0, ADC_maxval, 0, ARef_mvolt);
-            break;
     }
     return ret;
 }
 
-void process_mic_input()
+void process_mic_input(uint32_t the_delta_time)
 {
+    // decay
+    const float decay_secs = 1.f;
+    float decay = 1.f / decay_secs * the_delta_time / 1000.f;
+    g_mic_lvl = max(0, g_mic_lvl - decay);
+
     if(millis() > g_mic_start_millis + g_mic_sample_window)
     {
         g_mic_peak_to_peak = g_mic_signal_max - g_mic_signal_min;  // max - min = peak-peak amplitude
         g_mic_signal_max = 0;
         g_mic_signal_min = ADC_MAX;
         g_mic_start_millis = millis();
-        g_mic_lvl *= .96f;
 
-        const uint32_t thresh = 4;
-        g_mic_peak_to_peak = g_mic_peak_to_peak < thresh ? 0 : g_mic_peak_to_peak;
+        g_mic_peak_to_peak = max(0, g_mic_peak_to_peak - 2);
 
         // read mic val
-        float v = clamp<float>(g_mic_peak_to_peak / 80.f, 0.f, 1.f);
+        float v = clamp<float>(g_mic_peak_to_peak / 100.f, 0.f, 1.f);
         g_mic_lvl = max(g_mic_lvl, v);
+
+        g_current_sample_rate = 1000 * g_tick_count / g_mic_sample_window;
+        g_tick_count = 0;
+
+        // Run FFT on sample data.
+        arm_cfft_radix4_instance_f32 fft_inst;
     }
 }

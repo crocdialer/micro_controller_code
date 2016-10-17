@@ -3,6 +3,16 @@
 #include "Arduino.h"
 
 template <typename T>
+void fmt_real_to_str(char *buf, T val, uint32_t precision = 3)
+{
+    int multiplier = 1;
+    for(int i = 0; i < precision; i++){ multiplier *= 10; }
+    T frac = val - int(val);
+    int32_t fmt = frac * multiplier;
+    sprintf(buf, "%d.%d", (int)val, fmt);
+};
+
+template <typename T>
 inline int sgn(T val)
 {
     return (T(0) < val) - (val < T(0));
@@ -33,76 +43,6 @@ inline T map_value(const T &val, const T &src_min, const T &src_max,
     float mix_val = clamp<float>(val / (src_max - src_min), 0.f, 1.f);
     return mix<T>(dst_min, dst_max, mix_val);
 }
-
-class vec3 {
-public:
-  float x, y, z;
-  vec3():
-  x(0), y(0), z(0) {
-  }
-  vec3(float x, float y, float z) :
-  x(x), y(y), z(z) {
-  }
-  void set(const float* v) {
-    x = v[0], y = v[1], z = v[2];
-  }
-  void set(float vx, float vy, float vz) {
-    x = vx, y = vy, z = vz;
-  }
-  void set(const vec3& v) {
-    x = v.x, y = v.y, z = v.z;
-  }
-  void zero() {
-    x = 0, y = 0, z = 0;
-  }
-  float length2() const {
-    return x * x + y * y + z * z;
-  }
-  float length() const{
-    return sqrt(x * x + y * y + z * z);
-  }
-  boolean operator==(const vec3& v) {
-    return x == v.x && y == v.y && z == v.z;
-  }
-  boolean operator!=(const vec3& v) {
-    return x != v.x || y != v.y || z != v.z;
-  }
-  void operator+=(const vec3& v) {
-    x += v.x, y += v.y, z += v.z;
-  }
-  void operator-=(const vec3& v) {
-    x -= v.x, y -= v.y, z -= v.z;
-  }
-  void operator/=(float v) {
-    x /= v, y /= v, z /= v;
-  }
-  void operator*=(float v) {
-    x *= v, y *= v, z *= v;
-  }
-  vec3 operator+(const vec3& v) {
-    vec3 c = *this;
-    c += v;
-    return c;
-  }
-  vec3 operator-(const vec3& v) {
-    vec3 c = *this;
-    c -= v;
-    return c;
-  }
-  vec3 operator/(float v) {
-    vec3 c = *this;
-    c /= v;
-    return c;
-  }
-  vec3 operator*(float v) {
-    vec3 c = *this;
-    c *= v;
-    return c;
-  }
-  operator float*() {
-    return (float*) this;
-  }
-};
 
 template<typename T>
 class CircularBuffer

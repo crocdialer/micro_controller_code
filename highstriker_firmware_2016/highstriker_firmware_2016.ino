@@ -7,8 +7,9 @@
 #include <Adafruit_LIS3DH.h>
 #include <Adafruit_Sensor.h>
 
-#include "utils.h"
 #include "RunningMedian.h"
+#include "utils.h"
+#include "vec3.h"
 
 #define USE_SPI 0
 
@@ -24,6 +25,7 @@ bool g_indicator = false;
 // the number of attached SPI sensors
 const uint8_t g_max_num_sensors = 1;
 uint8_t g_num_sensors = 0;
+const uint32_t g_sensor_range = LIS3DH_RANGE_4_G;
 
 // the array of SPI chip-select pins
 const uint8_t g_cs_pins[] = {9, 10, 11, 12};
@@ -33,14 +35,9 @@ sensors_event_t g_sensor_event;
 const uint16_t g_sense_interval = 0;
 float g_value_buf[g_max_num_sensors];
 
-const uint16_t g_num_samples = 3;
+const uint16_t g_num_samples = 5;
 
-RunningMedian g_running_median[3] =
-{
-  RunningMedian(g_num_samples),
-  RunningMedian(g_num_samples),
-  RunningMedian(g_num_samples)
-};
+RunningMedian g_running_median = RunningMedian(g_num_samples);
 
 void setup()
 {
@@ -66,7 +63,7 @@ void setup()
     for(uint8_t i = 0; i < g_num_sensors; i++)
     {
         // 2, 4, 8 or 16 G!
-        g_sensors[i].setRange(LIS3DH_RANGE_16_G);
+        g_sensors[i].setRange(g_sensor_range);
     }
 
     if(!g_num_sensors)
@@ -91,23 +88,16 @@ void loop()
         {
             // sensor reading
             g_sensors[s].getEvent(&g_sensor_event);
+            vec3 measurement(g_sensor_event.acceleration.v[0],
+                             g_sensor_event.acceleration.v[1],
+                             g_sensor_event.acceleration.v[2]);
+            g_running_median.add(measurement.length2());
 
-            for(uint8_t j = 0; j < 3; j++)
-            {
-                g_running_median[j].add(g_sensor_event.acceleration.v[j]);
-            }
             // wait the desired interval
             delay(g_sense_interval);
         }
-
-        // average of the middle n Median values
-        // removes noise from outliers
-        vec3 val = vec3(g_running_median[0].getMedian(),
-                        g_running_median[1].getMedian(),
-                        g_running_median[2].getMedian());
-
         const float base_g =  9.80665f;
-        float g_factor = val.length() / base_g;
+        float g_factor = sqrt(g_running_median.getMedian()) / base_g;
         g_value_buf[s] = max(g_value_buf[s], max(g_factor - 1.f, 0.f));
     }
 
