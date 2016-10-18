@@ -3,13 +3,16 @@
 #include "Arduino.h"
 
 template <typename T>
-void fmt_real_to_str(char *buf, T val, uint32_t precision = 3)
+const char* fmt_real_to_str(T val, uint32_t precision = 3)
 {
+    static char ret[32], fmt_buf[32];
     int multiplier = 1;
     for(int i = 0; i < precision; i++){ multiplier *= 10; }
     T frac = val - int(val);
     int32_t fmt = frac * multiplier;
-    sprintf(buf, "%d.%d", (int)val, fmt);
+    sprintf(fmt_buf, "%%d.%%%02dd", (int)precision);
+    sprintf(ret, fmt_buf, (int)val, fmt);
+    return ret;
 };
 
 template <typename T>

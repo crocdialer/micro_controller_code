@@ -11,12 +11,18 @@
 #include "utils.h"
 #include "vec3.h"
 
+#define QUERY_ID_CMD "ID"
+#define DEVICE_ID "BIO_FEEDBACK"
+
 #define USE_SPI 0
 #define HALL_PIN A5
 
 #define SERIAL_END_CODE '\n'
 #define SERIAL_BUFSIZE 512
 char g_serial_buf[SERIAL_BUFSIZE], g_num_buf[32];
+
+#define ADC_BITS 10
+const float ADC_MAX = (1 << ADC_BITS) - 1.f;
 
 long g_last_time_stamp = 0;
 uint32_t g_time_accum = 0;
@@ -109,19 +115,16 @@ void loop()
     {
         g_hall_median.add(analogRead(HALL_PIN));
     }
-    g_hall_current_value = g_hall_median.getMedian();
+    g_hall_current_value = 1.f - (g_hall_median.getMedian() / ADC_MAX);
 
     if(g_time_accum >= g_update_interval)
     {
         for(uint8_t s = 0; s < g_num_sensors; s++)
         {
-            fmt_real_to_str(g_num_buf, g_value_buf[s]);
-            strcat(g_serial_buf, g_num_buf);
+            strcat(g_serial_buf, fmt_real_to_str(g_value_buf[s]));
             strcat(g_serial_buf, " ");
         }
-        // g_serial_buf[strlen(g_serial_buf) - 1] = '\n';
-        fmt_real_to_str(g_num_buf, g_hall_current_value);
-        strcat(g_serial_buf, g_num_buf);
+        strcat(g_serial_buf, fmt_real_to_str(g_hall_current_value));
         strcat(g_serial_buf, "\n");
 
         // sprintf(g_serial_buf, "%s\n", g_num_buf);
@@ -132,16 +135,53 @@ void loop()
         g_time_accum = 0;
         g_indicator = !g_indicator;
         // digitalWrite(13, g_indicator);
+
+        process_serial_input(Serial);
     }
 }
 
-void serialEvent()
+template <typename T> void process_serial_input(T& the_serial)
 {
-    while (Serial.available())
+    uint16_t buf_idx = 0;
+
+    while(the_serial.available())
     {
         // get the new byte:
-        char c = Serial.read();
+        char c = the_serial.read();
 
-        if(c == '\0'){ continue; }
+        switch(c)
+        {
+            case '\r':
+            case '\0':
+                continue;
+
+            case '\n':
+                g_serial_buf[buf_idx] = '\0';
+                buf_idx = 0;
+                parse_line(g_serial_buf);
+                break;
+
+            default:
+                g_serial_buf[buf_idx++] = c;
+                break;
+        }
+    }
+}
+
+void parse_line(char *the_line)
+{
+    const char* delim = " ";
+    const size_t elem_count = 3;
+    char *token = strtok(the_line, delim);
+
+    while(token)
+    {
+        if(strcmp(token, QUERY_ID_CMD) == 0)
+        {
+            char buf[32];
+            sprintf(buf, "%s\n", DEVICE_ID);
+            Serial.write(buf);
+        }
+        token = strtok(nullptr, delim);
     }
 }
