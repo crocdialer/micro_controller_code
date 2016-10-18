@@ -19,7 +19,7 @@
 
 #define SERIAL_END_CODE '\n'
 #define SERIAL_BUFSIZE 512
-char g_serial_buf[SERIAL_BUFSIZE], g_num_buf[32];
+char g_serial_buf[SERIAL_BUFSIZE];
 
 #define ADC_BITS 10
 const float ADC_MAX = (1 << ADC_BITS) - 1.f;
