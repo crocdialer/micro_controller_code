@@ -34,8 +34,8 @@
 #define ADC_BITS 10
 const float ADC_MAX = (1 << ADC_BITS) - 1.f;
 
-#define ARM_MATH_CM0
-#include <arm_math.h>} // this header appears to have screwed braces!?
+// #define ARM_MATH_CM0
+// #include <arm_math.h>} // this header appears to have screwed braces!?
 
 const int g_update_interval = 20;
 
@@ -370,6 +370,6 @@ void process_mic_input(uint32_t the_delta_time)
         g_tick_count = 0;
 
         // Run FFT on sample data.
-        arm_cfft_radix4_instance_f32 fft_inst;
+        // arm_cfft_radix4_instance_f32 fft_inst;
     }
 }

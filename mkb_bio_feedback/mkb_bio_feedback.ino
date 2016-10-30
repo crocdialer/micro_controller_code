@@ -127,8 +127,8 @@ void loop()
         strcat(g_serial_buf, fmt_real_to_str(g_hall_current_value));
         strcat(g_serial_buf, "\n");
 
-        // sprintf(g_serial_buf, "%s\n", g_num_buf);
-        Serial.write(g_serial_buf);
+        // write to serial
+        Serial.print(g_serial_buf);
 
         g_serial_buf[0] = '\0';
         memset(g_value_buf, 0, sizeof(g_value_buf));
@@ -136,7 +136,7 @@ void loop()
         g_indicator = !g_indicator;
         // digitalWrite(13, g_indicator);
 
-        process_serial_input(Serial);
+        // process_serial_input(Serial);
     }
 }
 

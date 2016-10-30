@@ -26,18 +26,17 @@ int g_update_interval = 33;
 int g_time_accum = 0;
 long g_last_time_stamp;
 
+const int g_distance_thresh = 350;
 const uint16_t g_sense_interval = 1;
 const uint16_t g_num_samples = 5;
 
 RunningMedian g_running_median = RunningMedian(g_num_samples);
 
-volatile bool g_motion_detected = 0;
 volatile uint32_t g_motion_timestamp = 0;
-const uint32_t g_motion_timeout = 20000;
+const uint32_t g_motion_timeout = 5000;
 
 void motion_ISR()
 {
-    g_motion_detected = true;
     g_motion_timestamp = millis();
 }
 
@@ -46,7 +45,7 @@ void setup()
     for(uint8_t i = 0; i < g_num_pirs; i++)
     {
         pinMode(g_pir_pins[i], INPUT);
-        attachInterrupt(g_pir_pins[i], motion_ISR, CHANGE);
+        attachInterrupt(g_pir_pins[i], motion_ISR, RISING);
     }
     pinMode(DISTANCE_PIN, INPUT);
     pinMode(LED_PIN, OUTPUT);
@@ -66,29 +65,24 @@ void loop()
         delay(g_sense_interval);
     }
     int distance_val = g_running_median.getMedian();
-    const int thresh = 350;
 
-    if(distance_val > thresh)
+    if(distance_val > g_distance_thresh)
     {
          g_state_buf = STATE_ACTIVE;
          g_motion_timestamp = millis();
     }
-    if(millis() - g_motion_timestamp > g_motion_timeout)
-    {
-        g_state_buf = STATE_INACTIVE;
-        // g_motion_detected = false;
-    }
+
+    // eveluate motion timeout
+    bool motion_detected = millis() - g_motion_timestamp < g_motion_timeout;
+    if(!motion_detected){ g_state_buf = STATE_INACTIVE; }
 
     if(g_time_accum >= g_update_interval)
     {
         sprintf(g_serial_buf, "%d %s\n",
                 g_state_buf ? distance_val : 0,
-                g_motion_detected ? "PIR" : "");
+                motion_detected ? "PIR" : "");
         Serial.write(g_serial_buf);
-
         g_time_accum = 0;
-        // g_state_buf = 0;
-        g_motion_detected = false;
     }
     digitalWrite(LED_PIN, g_state_buf);
     // delay(250);

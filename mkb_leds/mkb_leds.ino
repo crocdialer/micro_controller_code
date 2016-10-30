@@ -15,7 +15,7 @@ char g_serial_buf[SERIAL_BUFSIZE];
 
 long g_last_time_stamp = 0;
 uint32_t g_time_accum = 0;
-uint32_t g_update_interval = 33;
+uint32_t g_update_interval = 10;
 bool g_indicator = false;
 
 static const uint32_t
@@ -91,27 +91,23 @@ void loop()
 
 template <typename T> void process_serial_input(T& the_serial)
 {
-    uint16_t buf_idx = 0;
+    uint32_t bytes_to_read = min(the_serial.available(), SERIAL_BUFSIZE);
+    the_serial.readBytes(g_serial_buf, bytes_to_read);
+    char* buf_ptr = g_serial_buf;
 
-    while(the_serial.available())
+    for(uint32_t i = 0; i < bytes_to_read; i++)
     {
-        // get the new byte:
-        char c = the_serial.read();
-
-        switch(c)
+        switch(g_serial_buf[i])
         {
-            case '\r':
-            case '\0':
-                continue;
-
             case '\n':
-                g_serial_buf[buf_idx] = '\0';
-                buf_idx = 0;
-                parse_line(g_serial_buf);
+                g_serial_buf[i] = '\0';
+                parse_line(buf_ptr);
+                buf_ptr = g_serial_buf + i + 1;
                 break;
 
             default:
-                g_serial_buf[buf_idx++] = c;
+            // case '\r':
+            // case '\0':
                 break;
         }
     }
@@ -155,9 +151,7 @@ void parse_line(char *the_line)
             g_current_color = Adafruit_NeoPixel::Color(parsed_ints[0], parsed_ints[1],
                                                        parsed_ints[2], g_gamma[parsed_ints[3]]);
             break;
-            
-        case 0:
-        case 2:
+
         default:
             break;
     }

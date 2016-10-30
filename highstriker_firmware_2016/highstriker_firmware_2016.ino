@@ -88,9 +88,7 @@ void loop()
         {
             // sensor reading
             g_sensors[s].getEvent(&g_sensor_event);
-            vec3 measurement(g_sensor_event.acceleration.v[0],
-                             g_sensor_event.acceleration.v[1],
-                             g_sensor_event.acceleration.v[2]);
+            vec3 measurement(g_sensor_event.acceleration.v);
             g_running_median.add(measurement.length2());
 
             // wait the desired interval

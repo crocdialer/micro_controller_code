@@ -10,6 +10,9 @@ public:
     vec3(float x, float y, float z):
     x(x), y(y), z(z){}
 
+    vec3(const float* v):
+    x(v[0]), y(v[1]), z(v[2]){}
+
     void set(const float* v){ x = v[0], y = v[1], z = v[2]; }
 
     void set(float vx, float vy, float vz){ x = vx, y = vy, z = vz; }
