@@ -11,7 +11,10 @@
 #include "utils.h"
 #include "vec3.h"
 
-#define QUERY_ID_CMD "ID"
+#define CMD_QUERY_ID "ID"
+#define CMD_START "START"
+#define CMD_STOP "STOP"
+#define CMD_RESET "RESET"
 #define DEVICE_ID "BIO_FEEDBACK"
 
 #define USE_SPI 0
@@ -168,6 +171,18 @@ template <typename T> void process_serial_input(T& the_serial)
     }
 }
 
+bool check_for_cmd(const char* the_str)
+{
+    if(strcmp(the_str, CMD_QUERY_ID) == 0)
+    {
+        char buf[32];
+        sprintf(buf, "%s %s\n", the_str, DEVICE_ID);
+        Serial.write(buf);
+        return true;
+    }
+    return false;
+}
+
 void parse_line(char *the_line)
 {
     const char* delim = " ";
@@ -176,12 +191,7 @@ void parse_line(char *the_line)
 
     while(token)
     {
-        if(strcmp(token, QUERY_ID_CMD) == 0)
-        {
-            char buf[32];
-            sprintf(buf, "%s\n", DEVICE_ID);
-            Serial.write(buf);
-        }
+        check_for_cmd(token);
         token = strtok(nullptr, delim);
     }
 }

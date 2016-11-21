@@ -4,8 +4,14 @@
 */
 #include "RunningMedian.h"
 
-#define DISTANCE_PIN A0
-#define POTI_PIN A1
+#define CMD_QUERY_ID "ID"
+#define CMD_START "START"
+#define CMD_STOP "STOP"
+#define CMD_RESET "RESET"
+#define DEVICE_ID "DISTANCE_SENSOR"
+
+#define DISTANCE_PIN A5
+// #define POTI_PIN A1
 #define LED_PIN 13
 
 const uint8_t g_num_pirs = 1;
@@ -33,11 +39,14 @@ const uint16_t g_num_samples = 5;
 RunningMedian g_running_median = RunningMedian(g_num_samples);
 
 volatile uint32_t g_motion_timestamp = 0;
-const uint32_t g_motion_timeout = 5000;
+volatile bool g_pir_active = false;
+const uint32_t g_motion_timeout = 120000;
 
 void motion_ISR()
 {
     g_motion_timestamp = millis();
+    g_pir_active = false;
+    for(int i = 0; i < g_num_pirs; ++i){ g_pir_active |= digitalRead(g_pir_pins[i]); }
 }
 
 void setup()
@@ -45,7 +54,7 @@ void setup()
     for(uint8_t i = 0; i < g_num_pirs; i++)
     {
         pinMode(g_pir_pins[i], INPUT);
-        attachInterrupt(g_pir_pins[i], motion_ISR, RISING);
+        attachInterrupt(g_pir_pins[i], motion_ISR, CHANGE);
     }
     pinMode(DISTANCE_PIN, INPUT);
     pinMode(LED_PIN, OUTPUT);
@@ -72,18 +81,75 @@ void loop()
          g_motion_timestamp = millis();
     }
 
-    // eveluate motion timeout
-    bool motion_detected = millis() - g_motion_timestamp < g_motion_timeout;
-    if(!motion_detected){ g_state_buf = STATE_INACTIVE; }
+    // evaluate motion timeout
+    bool is_timer_running = millis() - g_motion_timestamp < g_motion_timeout;
+    if(!is_timer_running){ g_state_buf = STATE_INACTIVE; }
+
+    int millis_left = g_motion_timeout - millis() + g_motion_timestamp;
 
     if(g_time_accum >= g_update_interval)
     {
-        sprintf(g_serial_buf, "%d %s\n",
-                g_state_buf ? distance_val : 0,
-                motion_detected ? "PIR" : "");
+        // sprintf(g_serial_buf, "active: %d -- distance: %d -- pir: %d\n",
+        //         g_state_buf, distance_val, g_pir_active);
+        sprintf(g_serial_buf, "%d\n", g_state_buf ? millis_left : 0);
+
         Serial.write(g_serial_buf);
         g_time_accum = 0;
+
+        process_serial_input(Serial);
     }
     digitalWrite(LED_PIN, g_state_buf);
-    // delay(250);
+}
+
+template <typename T> void process_serial_input(T& the_serial)
+{
+    uint16_t buf_idx = 0;
+
+    while(the_serial.available())
+    {
+        // get the new byte:
+        char c = the_serial.read();
+
+        switch(c)
+        {
+            case '\r':
+            case '\0':
+                continue;
+
+            case '\n':
+                g_serial_buf[buf_idx] = '\0';
+                buf_idx = 0;
+                parse_line(g_serial_buf);
+                break;
+
+            default:
+                g_serial_buf[buf_idx++] = c;
+                break;
+        }
+    }
+}
+
+bool check_for_cmd(const char* the_str)
+{
+    if(strcmp(the_str, CMD_QUERY_ID) == 0)
+    {
+        char buf[32];
+        sprintf(buf, "%s %s\n", the_str, DEVICE_ID);
+        Serial.write(buf);
+        return true;
+    }
+    return false;
+}
+
+void parse_line(char *the_line)
+{
+    const char* delim = " ";
+    char *token = strtok(the_line, delim);
+    uint16_t i = 0;
+
+    while(token)
+    {
+        check_for_cmd(token);
+        token = strtok(nullptr, delim);
+    }
 }

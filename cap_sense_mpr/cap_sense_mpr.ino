@@ -3,7 +3,22 @@
 #include "RunningMedian.h"
 #include "utils.h"
 
-// #define USE_BLUETOOTH
+#define USE_BLUETOOTH
+
+// const uint8_t g_num_commands = 4;
+// const char* g_commands[g_num_commands] =
+// {
+//     "ID",
+//     "START",
+//     "STOP",
+//     "RESET"
+// };
+
+#define CMD_QUERY_ID "ID"
+#define CMD_START "START"
+#define CMD_STOP "STOP"
+#define CMD_RESET "RESET"
+#define DEVICE_ID "CAPACITIVE_SENSOR"
 
 // bluetooth communication
 #ifdef USE_BLUETOOTH
@@ -102,7 +117,7 @@ void setup()
         g_proxy_medians[i] = RunningMedian(g_num_samples);
     }
 
-    // while(!has_uart()){ blink_status_led(); }
+    while(!has_uart()){ blink_status_led(); }
     Serial.begin(57600);
 
     digitalWrite(13, LOW);
@@ -217,6 +232,18 @@ template <typename T> void process_serial_input(T& the_serial)
     }
 }
 
+bool check_for_cmd(const char* the_str)
+{
+    if(strcmp(the_str, CMD_QUERY_ID) == 0)
+    {
+        char buf[32];
+        sprintf(buf, "%s %s\n", the_str, DEVICE_ID);
+        Serial.write(buf);
+        return true;
+    }
+    return false;
+}
+
 void parse_line(char *the_line)
 {
     const char* delim = " ";
@@ -227,7 +254,8 @@ void parse_line(char *the_line)
 
     for(; token && (i < elem_count); i++)
     {
-        num_buf[i] = atoi(token);
+        if(check_for_cmd(token)){}
+        else{ num_buf[i] = atoi(token); }
         token = strtok(nullptr, delim);
     }
 

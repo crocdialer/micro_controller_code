@@ -6,8 +6,11 @@
 
 #include <Adafruit_NeoPixel.h>
 
-#define QUERY_ID_CMD "ID"
-#define DEVICE_ID "LEDS"
+#define CMD_QUERY_ID "ID"
+#define CMD_START "START"
+#define CMD_STOP "STOP"
+#define CMD_RESET "RESET"
+#define DEVICE_ID "LED_CONTROL"
 
 #define SERIAL_END_CODE '\n'
 #define SERIAL_BUFSIZE 512
@@ -24,9 +27,9 @@ PURPLE = Adafruit_NeoPixel::Color(150, 235, 0, 20),
 ORANGE = Adafruit_NeoPixel::Color(0, 255, 50, 40),
 BLACK = 0;
 
-const uint8_t g_num_stripes = 1;
-const uint8_t g_led_pins[g_num_stripes] = {12};
-const uint8_t g_led_counts[g_num_stripes] = {64};
+const uint8_t g_num_stripes = 2;
+const uint8_t g_led_pins[g_num_stripes] = {6, 10};
+const uint8_t g_led_counts[g_num_stripes] = {182, 90};
 Adafruit_NeoPixel* g_stripes[g_num_stripes];
 uint32_t g_current_color = BLACK;
 
@@ -50,10 +53,24 @@ const uint8_t g_gamma[256] =
   215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255
 };
 
+void blink_status_led()
+{
+    digitalWrite(13, LOW);
+    delay(500);
+    digitalWrite(13, HIGH);
+    delay(500);
+}
+
 void setup()
 {
+    // drives our status LED
+    pinMode(13, OUTPUT);
+
     // initialize the serial communication:
+    while(!Serial){ blink_status_led(); }
     Serial.begin(57600);
+    Serial.println(DEVICE_ID);
+
     memset(g_serial_buf, 0, SERIAL_BUFSIZE);
 
     for(int i = 0; i < g_num_stripes; i++)
@@ -78,13 +95,20 @@ void loop()
         // check for input
         process_serial_input(Serial);
 
-        for(int i = 0; i < g_num_stripes; i++)
+        // for(int i = 0; i < g_num_stripes; i++)
         {
-            for(int p = 0; p < g_stripes[i]->numPixels(); ++p)
+            for(int p = 0; p < g_stripes[0]->numPixels(); ++p)
             {
-                g_stripes[i]->setPixelColor(p, g_current_color);
+                g_stripes[0]->setPixelColor(p, g_current_color);
             }
-            g_stripes[i]->show();
+            g_stripes[0]->show();
+
+            for(int p = 0; p < g_stripes[1]->numPixels(); ++p)
+            {
+                g_stripes[1]->setPixelColor(p, WHITE);
+            }
+            g_stripes[1]->setBrightness( 175 + 80 * sin(0.0005f * g_last_time_stamp));
+            g_stripes[1]->show();
         }
     }
 }
@@ -113,6 +137,18 @@ template <typename T> void process_serial_input(T& the_serial)
     }
 }
 
+bool check_for_cmd(const char* the_str)
+{
+    if(strcmp(the_str, CMD_QUERY_ID) == 0)
+    {
+        char buf[32];
+        sprintf(buf, "%s %s\n", the_str, DEVICE_ID);
+        Serial.write(buf);
+        return true;
+    }
+    return false;
+}
+
 void parse_line(char *the_line)
 {
     const char* delim = " ";
@@ -124,15 +160,10 @@ void parse_line(char *the_line)
     char *token = strtok(the_line, delim);
     uint32_t num_tokens = 0;
 
-    for(; token && (num_tokens < elem_count); ++num_tokens)
+    for(; token && (num_tokens < elem_count);)
     {
-        if(strcmp(token, QUERY_ID_CMD) == 0)
-        {
-            char buf[32];
-            sprintf(buf, "%s\n", DEVICE_ID);
-            Serial.write(buf);
-        }
-        else{ parsed_ints[num_tokens] = atoi(token); }
+        if(check_for_cmd(token)){}
+        else{ parsed_ints[num_tokens] = atoi(token); ++num_tokens; }
 
         // fetch next token
         token = strtok(nullptr, delim);
