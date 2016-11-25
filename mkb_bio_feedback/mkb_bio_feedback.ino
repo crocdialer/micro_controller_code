@@ -191,7 +191,7 @@ void parse_line(char *the_line)
 
     while(token)
     {
-        check_for_cmd(token);
+        if(check_for_cmd(token)){ break; }
         token = strtok(nullptr, delim);
     }
 }

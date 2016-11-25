@@ -69,7 +69,7 @@ void setup()
     // initialize the serial communication:
     while(!Serial){ blink_status_led(); }
     Serial.begin(57600);
-    Serial.println(DEVICE_ID);
+    // Serial.println(DEVICE_ID);
 
     memset(g_serial_buf, 0, SERIAL_BUFSIZE);
 
@@ -162,7 +162,7 @@ void parse_line(char *the_line)
 
     for(; token && (num_tokens < elem_count);)
     {
-        if(check_for_cmd(token)){}
+        if(check_for_cmd(token)){ break; }
         else{ parsed_ints[num_tokens] = atoi(token); ++num_tokens; }
 
         // fetch next token
@@ -172,7 +172,7 @@ void parse_line(char *the_line)
     switch(num_tokens)
     {
         case 1:
-            g_current_color = Adafruit_NeoPixel::Color(0, 0, 0, g_gamma[parsed_ints[0]]);
+            g_current_color = Adafruit_NeoPixel::Color(0, 0, 0, parsed_ints[0]);
             break;
         case 3:
             g_current_color = Adafruit_NeoPixel::Color(parsed_ints[0], parsed_ints[1],
@@ -180,7 +180,7 @@ void parse_line(char *the_line)
             break;
         case 4:
             g_current_color = Adafruit_NeoPixel::Color(parsed_ints[0], parsed_ints[1],
-                                                       parsed_ints[2], g_gamma[parsed_ints[3]]);
+                                                       parsed_ints[2], parsed_ints[3]);
             break;
 
         default:

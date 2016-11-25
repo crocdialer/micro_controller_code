@@ -254,7 +254,7 @@ void parse_line(char *the_line)
 
     for(; token && (i < elem_count); i++)
     {
-        if(check_for_cmd(token)){}
+        if(check_for_cmd(token)){ break; }
         else{ num_buf[i] = atoi(token); }
         token = strtok(nullptr, delim);
     }
