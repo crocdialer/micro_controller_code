@@ -3,7 +3,7 @@
 #include "RunningMedian.h"
 #include "utils.h"
 
-#define USE_BLUETOOTH
+// #define USE_BLUETOOTH
 
 // const uint8_t g_num_commands = 4;
 // const char* g_commands[g_num_commands] =
@@ -239,6 +239,9 @@ bool check_for_cmd(const char* the_str)
         char buf[32];
         sprintf(buf, "%s %s\n", the_str, DEVICE_ID);
         Serial.write(buf);
+        #ifdef USE_BLUETOOTH
+            g_bt_serial.write(buf);
+        #endif
         return true;
     }
     return false;
