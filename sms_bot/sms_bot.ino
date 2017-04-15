@@ -24,11 +24,17 @@ char g_reply_buffer[256];
 // the currently used phone number to send messages to
 char g_current_target_number[64];
 
-const uint8_t g_button_pin = 17, g_button_led_pin = 5;
+const uint8_t g_button_pin = 12, g_button_led_pin = 13;
+
+// button/logic handling
+bool g_button_pressed = false;
+bool g_is_ready = true;
+uint32_t g_blink_interval = 1000;
+long g_timeout_ready = 1000 * 5;
 
 // helper variables for time measurement
 long g_last_time_stamp = 0;
-uint32_t g_time_accum = 0;
+uint32_t g_time_accum = 0, g_time_accum_button = 0;
 uint32_t g_update_interval = 100;
 
 // We default to using software serial. If you want to use hardware serial
@@ -45,44 +51,44 @@ Adafruit_FONA g_fona = Adafruit_FONA(FONA_RST);
 
 uint8_t readline(char *buff, uint8_t maxbuff, uint16_t timeout = 0);
 
-// interrupt service routine for button press
-void button_isr()
+void blink_led()
 {
-    cli();
-
-    sei();
+    digitalWrite(g_button_led_pin, LOW);
+    delay(200);
+    digitalWrite(g_button_led_pin, HIGH);
+    delay(200);
 }
 
 void setup()
 {
     // push button
     pinMode(g_button_pin, INPUT_PULLUP);
-    attachInterrupt(g_button_pin, button_isr, FALLING);
 
     // LED
     pinMode(g_button_led_pin, OUTPUT);
 
-    while (!Serial);
+    // while (!Serial);
 
     Serial.begin(115200);
-    Serial.println(F("FONA SMS caller ID test"));
-    Serial.println(F("Initializing....(May take 3 seconds)"));
+    // Serial.println(F("FONA SMS caller ID test"));
+    // Serial.println(F("Initializing....(May take 3 seconds)"));
 
     // make it slow so its easy to read!
     g_fona_serial->begin(4800);
     if(!g_fona.begin(*g_fona_serial))
     {
       Serial.println(F("Couldn't find FONA"));
-      while(1);
+      digitalWrite(g_button_led_pin, 1);
+      while(1){ blink_led(); }
     }
-    Serial.println(F("FONA is OK"));
+    // Serial.println(F("FONA is OK"));
 
     // Print SIM card IMEI number.
-    char imei[16] = {0}; // MUST use a 16 character buffer for IMEI!
-    uint8_t imeiLen = g_fona.getIMEI(imei);
-
-    if(imeiLen > 0){ Serial.print("SIM card IMEI: "); Serial.println(imei); }
-    Serial.println("FONA Ready");
+    // char imei[16] = {0}; // MUST use a 16 character buffer for IMEI!
+    // uint8_t imeiLen = g_fona.getIMEI(imei);
+    // if(imeiLen > 0){ Serial.print("SIM card IMEI: "); Serial.println(imei); }
+    //
+    // Serial.println("FONA Ready");
 }
 
 void loop()
@@ -91,6 +97,21 @@ void loop()
     uint32_t delta_time = millis() - g_last_time_stamp;
     g_last_time_stamp = millis();
     g_time_accum += delta_time;
+    g_time_accum_button += delta_time;
+
+    // indicator LED
+    bool light_led = g_is_ready && (g_last_time_stamp / g_blink_interval % 2);
+    digitalWrite(g_button_led_pin, light_led);
+
+    // button
+    g_button_pressed = !digitalRead(g_button_pin);
+
+    if(g_is_ready && g_button_pressed)
+    {
+        send_sms();
+        g_time_accum_button = 0;
+        g_is_ready = false;
+    }
 
     char* bufPtr = g_notification_buffer;    //handy buffer pointer
 
@@ -138,26 +159,29 @@ void loop()
             else{ Serial.println("Failed!"); }
 
             if(!g_fona.deleteSMS(slot)){ Serial.println(F("could not delete sms")); }
-
-            // //Send back an automatic response
-            // Serial.println("Sending reponse...");
-            //
-            // if(!g_fona.sendSMS(callerIDbuffer, "Hey, I got your text!"))
-            // {
-            //     Serial.println(F("Failed"));
-            // }
-            // else
-            // {
-            //     Serial.println(F("Sent!"));
-            // }
         }
     }//g_fona.available()
 
+    // process ready timeout
+    if(g_time_accum_button >= g_timeout_ready){ g_is_ready = true; }
+    
     if(g_time_accum >= g_update_interval)
     {
         process_serial_input(Serial);
         g_time_accum = 0;
     }
+}
+
+void send_sms()
+{
+    //Send back an automatic response
+    Serial.println("sending message...");
+
+    if(!g_fona.sendSMS(g_current_target_number, "Hey, du riechst aus der Huefte!"))
+    {
+        Serial.println(F("Failed"));
+    }
+    else{ Serial.println(F("Sent!")); }
 }
 
 template <typename T> void process_serial_input(T& the_serial)
@@ -191,6 +215,7 @@ template <typename T> void process_serial_input(T& the_serial)
 // we expect the format: "CMD_0:VALUE_0 CMD_N:VALUE_N ..."
 void parse_line(char *the_line)
 {
+    Serial.println(the_line);
     const char* delim = " ";
     const size_t max_num_tokens = 3;
     char *token = strtok(the_line, delim);
@@ -200,16 +225,12 @@ void parse_line(char *the_line)
     for(; token && (num_tokens < max_num_tokens); num_tokens++)
     {
         tokens[num_tokens] = token;
-
-        // if(check_for_cmd(token)){ break; }
-        // else{ num_buf[i] = atoi(token); }
         token = strtok(nullptr, delim);
     }
 
-    // parse tokens as CMD::VALUE
-
     for(int i = 0; i < num_tokens; ++i)
     {
+        // parse tokens as CMD::VALUE
         Serial.println(tokens[i]);
     }
 }
