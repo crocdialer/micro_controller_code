@@ -154,7 +154,7 @@ void loop()
             uint16_t smslen;
             if(g_fona.readSMS(slot, g_reply_buffer, 250, &smslen))
             {
-                // TODO: parse incoming SMS
+                parse_input(g_reply_buffer);
             }
             else{ Serial.println("Failed!"); }
 
@@ -164,7 +164,7 @@ void loop()
 
     // process ready timeout
     if(g_time_accum_button >= g_timeout_ready){ g_is_ready = true; }
-    
+
     if(g_time_accum >= g_update_interval)
     {
         process_serial_input(Serial);
@@ -202,7 +202,7 @@ template <typename T> void process_serial_input(T& the_serial)
             case '\n':
                 g_serial_buf[buf_idx] = '\0';
                 buf_idx = 0;
-                parse_line(g_serial_buf);
+                parse_input(g_serial_buf);
                 break;
 
             default:
@@ -213,7 +213,7 @@ template <typename T> void process_serial_input(T& the_serial)
 }
 
 // we expect the format: "CMD_0:VALUE_0 CMD_N:VALUE_N ..."
-void parse_line(char *the_line)
+void parse_input(char *the_line)
 {
     Serial.println(the_line);
     const char* delim = " ";
