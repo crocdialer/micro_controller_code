@@ -216,7 +216,7 @@ template <typename T> void process_serial_input(T& the_serial)
     }
 }
 
-// we expect the format: "CMD_0:VALUE_0 CMD_N:VALUE_N ..."
+// we expect the format: "CMD_0:VALUE_0;...;CMD_N:VALUE_N ..."
 void parse_input(char *the_line)
 {
     Serial.println(the_line);
