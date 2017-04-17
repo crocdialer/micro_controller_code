@@ -23,6 +23,9 @@ char g_reply_buffer[256];
 
 // the currently used phone number to send messages to
 char g_current_target_number[64];
+char g_current_text_buffer[256];
+const char* g_default_text = "just do it";
+const char* g_current_text = g_default_text;
 
 const uint8_t g_button_pin = 12, g_button_led_pin = 13;
 
@@ -89,6 +92,7 @@ void setup()
     // if(imeiLen > 0){ Serial.print("SIM card IMEI: "); Serial.println(imei); }
     //
     // Serial.println("FONA Ready");
+
 }
 
 void loop()
@@ -126,7 +130,7 @@ void loop()
         do
         {
             *bufPtr = g_fona.read();
-            Serial.write(*bufPtr);
+            // Serial.write(*bufPtr);
             delay(1);
         } while((*bufPtr++ != '\n') && (g_fona.available()) && (++charCount < (sizeof(g_notification_buffer)-1)));
 
@@ -177,7 +181,7 @@ void send_sms()
     //Send back an automatic response
     Serial.println("sending message...");
 
-    if(!g_fona.sendSMS(g_current_target_number, "Hey, du riechst aus der Huefte!"))
+    if(!g_fona.sendSMS(g_current_target_number, g_current_text))
     {
         Serial.println(F("Failed"));
     }
@@ -216,7 +220,7 @@ template <typename T> void process_serial_input(T& the_serial)
 void parse_input(char *the_line)
 {
     Serial.println(the_line);
-    const char* delim = " ";
+    const char* delim = ";";
     const size_t max_num_tokens = 3;
     char *token = strtok(the_line, delim);
     uint16_t num_tokens = 0;
@@ -228,9 +232,42 @@ void parse_input(char *the_line)
         token = strtok(nullptr, delim);
     }
 
+    const size_t max_num = 2;
+    num_tokens = 0;
+
     for(int i = 0; i < num_tokens; ++i)
     {
         // parse tokens as CMD::VALUE
         Serial.println(tokens[i]);
+
+        char *cmd = strtok(tokens[i], ":");
+        char *val = strtok(nullptr, ":");
+
+        if(cmd && val){ process_cmd(cmd, val); }
     }
+}
+
+bool process_cmd(char* the_cmd, char* the_val)
+{
+    Serial.print("command: ");Serial.print(the_cmd);
+    Serial.print(" - value: ");Serial.println(the_val);
+
+    bool success = false;
+    if(strcmp(the_cmd, "phone") == 0)
+    {
+        strcpy(g_current_target_number, the_val);
+        success = true;
+    }
+    else if(strcmp(the_cmd, "time") == 0)
+    {
+        g_timeout_ready = atoi(the_val);
+        success = true;
+    }
+    else if(strcmp(the_cmd, "text") == 0)
+    {
+        strcpy(g_current_text_buffer, the_val);
+        g_current_text = g_current_text_buffer;
+        success = true;
+    }
+    return success;
 }
