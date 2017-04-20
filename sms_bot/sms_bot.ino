@@ -22,7 +22,8 @@ char g_notification_buffer[64];
 char g_reply_buffer[256];
 
 // the currently used phone number to send messages to
-char g_current_target_number[64];
+const char* g_pin = "5157";
+char g_current_target_number[64] = "0792618330";
 char g_current_text_buffer[256];
 const char* g_default_text = "just do it";
 const char* g_current_text = g_default_text;
@@ -33,7 +34,7 @@ const uint8_t g_button_pin = 12, g_button_led_pin = 13;
 bool g_button_pressed = false;
 bool g_is_ready = true;
 uint32_t g_blink_interval = 1000;
-long g_timeout_ready = 1000 * 5;
+uint32_t g_timeout_ready = 300000;
 
 // helper variables for time measurement
 long g_last_time_stamp = 0;
@@ -84,15 +85,18 @@ void setup()
       digitalWrite(g_button_led_pin, 1);
       while(1){ blink_led(); }
     }
-    // Serial.println(F("FONA is OK"));
+    Serial.println(F("FONA is OK"));
 
     // Print SIM card IMEI number.
-    // char imei[16] = {0}; // MUST use a 16 character buffer for IMEI!
-    // uint8_t imeiLen = g_fona.getIMEI(imei);
-    // if(imeiLen > 0){ Serial.print("SIM card IMEI: "); Serial.println(imei); }
-    //
-    // Serial.println("FONA Ready");
+    char imei[16] = {0}; // MUST use a 16 character buffer for IMEI!
+    uint8_t imeiLen = g_fona.getIMEI(imei);
+    if(imeiLen > 0){ Serial.print("SIM card IMEI: "); Serial.println(imei); }
 
+    Serial.println("FONA Ready");
+
+    Serial.print(F("unlocking SIM: "));
+    if(!g_fona.unlockSIM(g_pin)){ Serial.println(F("Failed")); }
+    else{ Serial.println(F("OK!")); }
 }
 
 void loop()
@@ -112,9 +116,14 @@ void loop()
 
     if(g_is_ready && g_button_pressed)
     {
-        send_sms();
         g_time_accum_button = 0;
         g_is_ready = false;
+        send_sms();
+    }
+    else if(g_button_pressed)
+    {
+         Serial.print(g_time_accum_button); Serial.print(" / ");
+         Serial.println(g_timeout_ready);
     }
 
     char* bufPtr = g_notification_buffer;    //handy buffer pointer
@@ -179,7 +188,8 @@ void loop()
 void send_sms()
 {
     //Send back an automatic response
-    Serial.println("sending message...");
+    Serial.print("send_sms: ");Serial.println(g_current_target_number);
+    Serial.print("text: ");Serial.println(g_current_text);
 
     if(!g_fona.sendSMS(g_current_target_number, g_current_text))
     {
@@ -232,17 +242,12 @@ void parse_input(char *the_line)
         token = strtok(nullptr, delim);
     }
 
-    const size_t max_num = 2;
-    num_tokens = 0;
-
     for(int i = 0; i < num_tokens; ++i)
     {
-        // parse tokens as CMD::VALUE
         Serial.println(tokens[i]);
-
+        // parse tokens as CMD::VALUE
         char *cmd = strtok(tokens[i], ":");
         char *val = strtok(nullptr, ":");
-
         if(cmd && val){ process_cmd(cmd, val); }
     }
 }
@@ -260,7 +265,7 @@ bool process_cmd(char* the_cmd, char* the_val)
     }
     else if(strcmp(the_cmd, "time") == 0)
     {
-        g_timeout_ready = atoi(the_val);
+        g_timeout_ready = atol(the_val) * 1000;
         success = true;
     }
     else if(strcmp(the_cmd, "text") == 0)
