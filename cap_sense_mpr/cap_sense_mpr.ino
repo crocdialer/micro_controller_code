@@ -3,7 +3,7 @@
 #include "RunningMedian.h"
 #include "utils.h"
 
-// #define USE_BLUETOOTH
+#define USE_BLUETOOTH
 
 // const uint8_t g_num_commands = 4;
 // const char* g_commands[g_num_commands] =
