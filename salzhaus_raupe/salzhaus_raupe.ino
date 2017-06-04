@@ -113,6 +113,7 @@ void update_waves(uint32_t the_delta_time)
     {
          g_emit_wave = false;
          g_wave_sim.emit_wave(mix(0.2f, 1.f, g_charge));
+         g_charge = 0.f;
     }
 
     // idle timeout and wave timer elapsed
@@ -163,10 +164,6 @@ void setup()
     // while(!Serial){ delay(10); }
     Serial.begin(115200);
 
-    // start mic sampling
-    // g_adc_sampler.set_adc_callback(&adc_callback);
-    // g_adc_sampler.begin(MIC_PIN, 22050);
-
     g_tunnel.init();
 
     g_wave_sim.set_track_length(10.f);
@@ -183,8 +180,15 @@ void loop()
     // button state
     button_ISR();
 
-    // button led blinking
-    bool light_led = g_last_time_stamp / (g_button_pressed ? g_blink_interval / 8 : g_blink_interval) % 2;
+    bool light_led;
+
+    // button charge status and LED
+    if(g_button_pressed)
+    {
+        g_charge = clamp((g_last_time_stamp - g_button_timestamp) / (float) g_charge_millis, 0.f, 1.f);
+        light_led = (g_charge == 1.f) ? true : (g_last_time_stamp / (g_blink_interval / 8)) % 2;
+    }
+    else{ light_led = (g_last_time_stamp / g_blink_interval) % 2; }
     digitalWrite(BUTTON_LED, light_led);
 
     if(g_time_accum >= g_update_interval)
@@ -192,12 +196,6 @@ void loop()
         // flash red indicator LED
         digitalWrite(13, g_indicator);
         g_indicator = !g_indicator;
-
-        // button charge status
-        if(g_button_pressed)
-        {
-            g_charge = clamp((g_last_time_stamp - g_button_timestamp) / (float) g_charge_millis, 0.f, 1.f);
-        }
 
         // read debug inputs
         process_serial_input();
