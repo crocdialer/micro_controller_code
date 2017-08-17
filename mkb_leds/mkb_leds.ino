@@ -27,9 +27,9 @@ PURPLE = Adafruit_NeoPixel::Color(150, 235, 0, 20),
 ORANGE = Adafruit_NeoPixel::Color(0, 255, 50, 40),
 BLACK = 0;
 
-const uint8_t g_num_stripes = 2;
-const uint8_t g_led_pins[g_num_stripes] = {6, 10};
-const uint8_t g_led_counts[g_num_stripes] = {182, 90};
+const uint8_t g_num_stripes = 1;
+const uint8_t g_led_pins[] = {6};
+const uint8_t g_led_counts[] = {1160};
 Adafruit_NeoPixel* g_stripes[g_num_stripes];
 uint32_t g_current_color = BLACK;
 
@@ -95,20 +95,13 @@ void loop()
         // check for input
         process_serial_input(Serial);
 
-        // for(int i = 0; i < g_num_stripes; i++)
+        for(int i = 0; i < g_num_stripes; i++)
         {
-            for(int p = 0; p < g_stripes[0]->numPixels(); ++p)
+            for(int p = 0; p < g_stripes[i]->numPixels(); ++p)
             {
-                g_stripes[0]->setPixelColor(p, g_current_color);
+                g_stripes[i]->setPixelColor(p, g_current_color);
             }
-            g_stripes[0]->show();
-
-            for(int p = 0; p < g_stripes[1]->numPixels(); ++p)
-            {
-                g_stripes[1]->setPixelColor(p, WHITE);
-            }
-            g_stripes[1]->setBrightness( 175 + 80 * sin(0.0005f * g_last_time_stamp));
-            g_stripes[1]->show();
+            g_stripes[i]->show();
         }
     }
 }
