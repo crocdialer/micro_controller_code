@@ -35,11 +35,13 @@ LED_Path::~LED_Path()
 
 uint32_t LED_Path::num_leds() const
 {
-    uint32_t sum = 0;
-    Segment *ptr = m_segments[0], *end_ptr = m_segments[0] + num_segments();
+    // uint32_t sum = 0;
+    // Segment *ptr = m_segments[0], *end_ptr = m_segments[0] + num_segments();
+    //
+    // for(;ptr < end_ptr;++ptr){ sum += ptr->length(); }
+    // return sum;
 
-    for(;ptr < end_ptr;++ptr){ sum += ptr->length(); }
-    return sum;
+    return num_segments() * SEGMENT_LENGTH;
 }
 
 void LED_Path::clear()
@@ -55,8 +57,10 @@ void LED_Path::update(uint32_t the_delta_time)
 
     for(uint32_t i = 0; i < m_num_segments; ++i)
     {
+        if(!m_segments[i]->active()){ continue; }
         uint32_t c = m_segments[i]->color();
-        uint32_t *ptr = (uint32_t*)m_data, *end_ptr = ptr + m_segments[i]->length();
+        uint32_t *ptr = (uint32_t*)m_data + i * SEGMENT_LENGTH;
+        uint32_t *end_ptr = ptr + SEGMENT_LENGTH;
 
         for(;ptr < end_ptr;++ptr)
         {
@@ -64,14 +68,14 @@ void LED_Path::update(uint32_t the_delta_time)
             *ptr = fade_color(c, m_brightness * sin_val);
             ++count;
 
-            if(count >= m_current_max){ goto finished; }
+            if(flash_forward && count >= m_current_max){ goto finished; }
         }
     }
 
 finished:
 
     m_strip->show();
-    m_current_max = min(num_leds() - 1, m_current_max + m_flash_speed * the_delta_time / 1000.f);
+    m_current_max = min(num_leds(), m_current_max + m_flash_speed * the_delta_time / 1000.f);
 }
 
 void LED_Path::set_brightness(float the_brightness)

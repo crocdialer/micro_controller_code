@@ -26,9 +26,6 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_ONE_COLOR;
 
-const uint32_t g_num_mode_helpers = 2;
-ModeHelper* g_mode_helpers[g_num_mode_helpers] = {g_helper_one_color, g_helper_flash};
-
 void setup()
 {
     // drives our status LED
@@ -60,13 +57,10 @@ void loop()
         if(g_run_mode & MODE_DEBUG){ return; }
 
         // clear everything to black
-        g_path.clear();
+        // g_path.clear();
 
         // do mode stuff here
-        for(uint32_t i = 0; i < g_num_mode_helpers; ++i)
-        {
-            if(g_mode_helpers[i]){ g_mode_helpers[i]->process(g_time_accum); }
-        }
+        g_mode_helper->process(g_time_accum);
 
         g_path.update(g_time_accum);
 
