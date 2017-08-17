@@ -1,5 +1,4 @@
 #include "LED_Path.h"
-#include "utils.h"
 
 Segment::Segment(uint32_t the_length):
 m_length(the_length)
@@ -61,7 +60,7 @@ void LED_Path::update(uint32_t the_delta_time)
 
         for(;ptr < end_ptr;++ptr)
         {
-            float sin_val = 1.f;
+            float sin_val = create_sinus_val(count);
             *ptr = fade_color(c, m_brightness * sin_val);
             ++count;
 
@@ -69,16 +68,22 @@ void LED_Path::update(uint32_t the_delta_time)
         }
     }
 
-    //TODO: plasma sinus here
-
 finished:
 
     m_strip->show();
-    m_current_max = min(num_leds() - 1, m_current_max + m_grow_speed * the_delta_time / 1000.f);
+    m_current_max = min(num_leds() - 1, m_current_max + m_flash_speed * the_delta_time / 1000.f);
 }
 
 void LED_Path::set_brightness(float the_brightness)
 {
      m_brightness = the_brightness;
      m_strip->setBrightness(255 * m_brightness);
+}
+
+void LED_Path::set_all_segments(uint32_t the_color)
+{
+    for(uint32_t i = 0; i < m_num_segments; ++i)
+    {
+        m_segments[i]->set_color(the_color);
+    }
 }

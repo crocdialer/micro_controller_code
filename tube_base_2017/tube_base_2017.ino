@@ -1,19 +1,8 @@
-#include "LED_Path.h"
+#include "ModeHelpers.h"
 
 // update rate in Hz
 #define UPDATE_RATE 60
-
-#define PATH_LENGTH 8
-
-// some pin defines
-#define LED_PIN 6
-
 #define SERIAL_BUFSIZE 128
-
-static const uint32_t
-WHITE = Adafruit_NeoPixel::Color(0, 0, 0, 255),
-ORANGE = Adafruit_NeoPixel::Color(0, 255, 50, 40),
-BLACK = 0;
 
 char g_serial_buf[SERIAL_BUFSIZE];
 uint32_t g_buf_index = 0;
@@ -29,10 +18,6 @@ const int g_update_interval = 1000 / UPDATE_RATE;
 // to indicate update frequency
 bool g_indicator = false;
 
-// path variables
-LED_Path g_path = LED_Path(LED_PIN, PATH_LENGTH);
-uint32_t g_current_index = 0;
-
 //! define our run-modes here
 enum RunMode
 {
@@ -41,19 +26,9 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_ONE_COLOR;
 
-void process_mode(uint32_t the_run_mode)
-{
-    switch (the_run_mode)
-    {
-        case MODE_ONE_COLOR:
+const uint32_t g_num_mode_helpers = 2;
+ModeHelper* g_mode_helpers[g_num_mode_helpers] = {g_helper_one_color, g_helper_flash};
 
-        break;
-
-        default:
-            break;
-    }
-
-}
 void setup()
 {
     // drives our status LED
@@ -88,7 +63,10 @@ void loop()
         g_path.clear();
 
         // do mode stuff here
-        process_mode(g_run_mode);
+        for(uint32_t i = 0; i < g_num_mode_helpers; ++i)
+        {
+            if(g_mode_helpers[i]){ g_mode_helpers[i]->process(g_time_accum); }
+        }
 
         g_path.update(g_time_accum);
 
@@ -121,7 +99,6 @@ void process_serial_input()
             if(index >= 0 && index < g_path.num_segments())
             {
                 g_run_mode = MODE_DEBUG;
-                g_path.clear();
                 g_path.segment(index)->set_color(ORANGE);
                 g_path.update(0);
             }

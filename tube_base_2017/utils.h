@@ -104,3 +104,29 @@ static inline void print_color(uint32_t the_color)
             ptr[b_offset], ptr[w_offset]);
     Serial.write(buf);
 }
+
+#define PI 3.1415926535897f
+
+class FastSinus
+{
+public:
+    FastSinus()
+    {
+        float step = 2 * PI / 1000.f;
+        float val = 0;
+
+        for(uint32_t i = 0; i < 1000; ++i)
+        {
+            m_sin_table[i] = sin(val);
+            val += step;
+        }
+    }
+
+    inline float operator()(float the_val)
+    {
+        int index = (int)(the_val * 2 * PI / 1000.f) % 1000;
+        return m_sin_table[index];
+    }
+private:
+    float m_sin_table[1000];
+};
