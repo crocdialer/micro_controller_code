@@ -42,8 +42,6 @@ void LED_Path::update(uint32_t the_delta_time)
 {
     clear();
 
-    uint32_t count = 0;
-
     for(uint32_t i = 0; i < m_num_segments; ++i)
     {
         if(!m_segments[i]->active()){ continue; }
@@ -54,10 +52,10 @@ void LED_Path::update(uint32_t the_delta_time)
         for(;ptr < end_ptr;++ptr)
         {
             uint32_t current_index = ptr - (uint32_t*)m_data;
+            if(current_index >= m_current_max){ goto finished; }
+
             float sin_val = create_sinus_val(current_index);
             *ptr = fade_color(c, m_brightness * sin_val);
-
-            if(current_index >= m_current_max){ goto finished; }
         }
     }
 
