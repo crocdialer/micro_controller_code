@@ -6,7 +6,7 @@
 #include <Adafruit_NeoPixel.h>
 
 #define SEGMENT_LENGTH 116 // (2 tubes, each 58 px)
-#define PATH_LENGTH 8
+#define PATH_LENGTH 11
 #define LED_PIN 6
 
 class Segment
@@ -71,7 +71,7 @@ private:
     Adafruit_NeoPixel* m_strip;
     uint32_t m_num_segments;
     Segment** m_segments;
-    float m_brightness = .3f;
+    float m_brightness = 1.f;
 
     float m_current_max;
     float m_flash_speed = 800.f;
