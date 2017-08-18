@@ -33,16 +33,16 @@ LED_Path::~LED_Path()
     delete[] m_segments;
 }
 
-uint32_t LED_Path::num_leds() const
-{
-    // uint32_t sum = 0;
-    // Segment *ptr = m_segments[0], *end_ptr = m_segments[0] + num_segments();
-    //
-    // for(;ptr < end_ptr;++ptr){ sum += ptr->length(); }
-    // return sum;
-
-    return num_segments() * SEGMENT_LENGTH;
-}
+// uint32_t LED_Path::num_leds() const
+// {
+//     // uint32_t sum = 0;
+//     // Segment *ptr = m_segments[0], *end_ptr = m_segments[0] + num_segments();
+//     //
+//     // for(;ptr < end_ptr;++ptr){ sum += ptr->length(); }
+//     // return sum;
+//
+//     return num_segments() * SEGMENT_LENGTH;
+// }
 
 void LED_Path::clear()
 {
@@ -64,11 +64,11 @@ void LED_Path::update(uint32_t the_delta_time)
 
         for(;ptr < end_ptr;++ptr)
         {
-            float sin_val = create_sinus_val(count);
+            float sin_val = create_sinus_val(ptr - (uint32_t*)m_data);
             *ptr = fade_color(c, m_brightness * sin_val);
             ++count;
 
-            if(flash_forward && count >= m_current_max){ goto finished; }
+            if(count >= m_current_max){ goto finished; }
         }
     }
 
@@ -76,6 +76,13 @@ finished:
 
     m_strip->show();
     m_current_max = min(num_leds(), m_current_max + m_flash_speed * the_delta_time / 1000.f);
+
+    // advance sinus offsets
+    for(uint32_t i = 0; i < 3; ++i)
+    {
+        m_sinus_offsets[i] = fmodf(m_sinus_offsets[i] + (m_sinus_speeds[i] * the_delta_time / 1000.f),
+                                   num_leds());
+    }
 }
 
 void LED_Path::set_brightness(float the_brightness)

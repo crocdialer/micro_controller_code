@@ -54,6 +54,13 @@ inline T map_value(const T &val, const T &src_min, const T &src_max,
     return mix<T>(dst_min, dst_max, mix_val);
 }
 
+template <typename T>
+inline void swap(T& lhs, T& rhs)
+{
+    T tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+}
 /*! smoothstep performs smooth Hermite interpolation between 0 and 1,
  *  when edge0 < x < edge1.
  *  This is useful in cases where a threshold function with a smooth transition is desired
@@ -105,17 +112,18 @@ static inline void print_color(uint32_t the_color)
     Serial.write(buf);
 }
 
-#define PI_2 6.283185307
+#define PI 3.14159265f
+#define PI_2 6.283185307f
 
 class FastSinus
 {
 public:
     FastSinus()
     {
-        float step = PI_2 / 1000.f;
+        float step = PI_2 / (float)m_array_size;
         float val = 0;
 
-        for(uint32_t i = 0; i < 1000; ++i)
+        for(uint32_t i = 0; i < m_array_size; ++i)
         {
             m_sin_table[i] = sin(val);
             val += step;
@@ -125,9 +133,10 @@ public:
     inline float operator()(float the_val)
     {
         the_val = fmodf(the_val, PI_2) / (PI_2);
-        int index = (int)(the_val * 1000.f) % 1000;
+        int index = (int)(the_val * (m_array_size - 1));
         return m_sin_table[index];
     }
 private:
-    float m_sin_table[1000];
+    static constexpr uint32_t m_array_size = 2000;
+    float m_sin_table[m_array_size];
 };

@@ -3,11 +3,6 @@
 #include "LED_Path.h"
 #include "ColorDefines.h"
 
-#define PATH_LENGTH 8
-
-// some pin defines
-#define LED_PIN 6
-
 static const uint32_t g_colors[3] = {ORANGE, AQUA, GREEN};
 static const uint32_t g_num_colors = 3;
 
@@ -33,7 +28,7 @@ public:
         {
             g_path.set_all_segments(m_next_color);
 
-            uint32_t col_index = clamp<uint32_t>(random<uint32_t>(0, g_num_colors + 1),
+            uint32_t col_index = clamp<uint32_t>(random<uint32_t>(0, g_num_colors),
                                                  0, g_num_colors - 1);
             m_next_color = g_colors[col_index];
 
@@ -76,7 +71,7 @@ public:
         if(m_time_accum > m_trigger_time)
         {
             g_path.set_current_max(0);
-            g_path.set_flash_speed(random<uint32_t>(750, 2500));
+            g_path.set_flash_speed(random<uint32_t>(850, 3500));
             m_trigger_time = random<uint32_t>(m_trigger_time_min, m_trigger_time_max);
             m_time_accum = 0;
         }
@@ -106,6 +101,10 @@ public:
             for(uint32_t i = 0; i < g_path.num_segments(); ++i)
             {
                 g_path.segment(i)->set_active(random<float>(0, 1) > .5f);
+
+                uint32_t col_index = clamp<uint32_t>(random<uint32_t>(0, g_num_colors),
+                                                     0, g_num_colors - 1);
+                g_path.segment(i)->set_color(g_colors[col_index]);
             }
             m_trigger_time = random<uint32_t>(m_trigger_time_min, m_trigger_time_max);
             m_time_accum = 0;
@@ -131,7 +130,7 @@ public:
 private:
     uint32_t m_time_accum = 0;
     uint32_t m_trigger_time = 0;
-    uint32_t m_trigger_time_min = 100, m_trigger_time_max = 800;
+    uint32_t m_trigger_time_min = 600, m_trigger_time_max = 3000;
 };
 
 class CompositeMode : public ModeHelper
@@ -148,8 +147,13 @@ public:
         if(m_time_accum > m_trigger_time)
         {
             // change mode here
+            m_mode_helpers[1]->reset();
+            swap(m_mode_helpers[1], m_mode_helpers[2]);
+            m_shorter_duration = !m_shorter_duration;
 
             m_trigger_time = random<uint32_t>(m_trigger_time_min, m_trigger_time_max);
+            if(m_shorter_duration){ m_trigger_time /= 3; }
+
             m_time_accum = 0;
         }
     };
@@ -172,10 +176,12 @@ public:
 
 private:
     uint32_t m_num_mode_helpers = 2;
-    ModeHelper* m_mode_helpers[2] = {new Mode_ONE_COLOR(), new ModeFlash()};
+    ModeHelper* m_mode_helpers[3] = {new ModeFlash(), new Mode_ONE_COLOR(), new Mode_Segments()};
     uint32_t m_time_accum = 0;
     uint32_t m_trigger_time = 0;
-    uint32_t m_trigger_time_min = 100, m_trigger_time_max = 800;
+    uint32_t m_trigger_time_min = 1000 * 30 , m_trigger_time_max = 1000 * 120;
+
+    bool m_shorter_duration = false;
 };
 
 ModeHelper* g_mode_helper = new CompositeMode();

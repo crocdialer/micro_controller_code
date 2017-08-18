@@ -6,6 +6,8 @@
 #include <Adafruit_NeoPixel.h>
 
 #define SEGMENT_LENGTH 116 // (2 tubes, each 58 px)
+#define PATH_LENGTH 8
+#define LED_PIN 6
 
 class Segment
 {
@@ -28,7 +30,7 @@ public:
     LED_Path(uint32_t the_pin, uint32_t the_num_segments);
     ~LED_Path();
 
-    uint32_t num_leds() const;
+    inline uint32_t num_leds() const{ return num_segments() * SEGMENT_LENGTH; }
     inline uint32_t num_segments() const{ return m_num_segments; };
     inline Segment* segment(uint32_t the_index){ return m_segments[the_index]; };
 
@@ -43,33 +45,36 @@ public:
 
     void set_current_max(uint32_t the_max){ m_current_max = the_max; }
     void set_flash_speed(float the_speed){ m_flash_speed = the_speed; }
+    void set_flash_direction(bool b){ m_flash_forward = b; }
 
 private:
 
-    float m_sinus_factors[3] = {0.1f, 1.f, 30.f};
-    float m_sinus_speeds[3] = {.00012f, .017f, .5f};
+    float m_sinus_factors[3] = {PI_2, PI / 5.f, PI / 10.f};
+    float m_sinus_speeds[3] = {15, 67, 51};
+    float m_sinus_offsets[3] = {0, 211, 731};
 
     FastSinus m_fast_sin;
 
     inline float create_sinus_val(uint32_t the_index)
     {
-        float ret = 1.f;
+        float ret = 0.f;
 
-        for(uint32_t i = 0; i < 1; ++i)
+        for(uint32_t i = 0; i < 2; ++i)
         {
-            ret *= (m_fast_sin(millis() * m_sinus_speeds[i] + the_index * m_sinus_factors[i]) + 1.f) / 2.f;
+            float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / num_leds();
+            ret += (m_fast_sin(val) + 1.f) / 2.f;
         }
-        return clamp(ret, 0.2f, 1.f);
+        return clamp(ret / 2.f, 0.1f, 1.f);
     }
 
     uint8_t* m_data;
     Adafruit_NeoPixel* m_strip;
     uint32_t m_num_segments;
     Segment** m_segments;
-    float m_brightness = .5f;
+    float m_brightness = .3f;
 
     float m_current_max;
     float m_flash_speed = 800.f;
-    bool flash_forward = true;
+    bool m_flash_forward = true;
 };
 #endif
