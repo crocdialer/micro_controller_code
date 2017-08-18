@@ -61,6 +61,7 @@ inline void swap(T& lhs, T& rhs)
     lhs = rhs;
     rhs = tmp;
 }
+
 /*! smoothstep performs smooth Hermite interpolation between 0 and 1,
  *  when edge0 < x < edge1.
  *  This is useful in cases where a threshold function with a smooth transition is desired

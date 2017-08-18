@@ -22,9 +22,11 @@ bool g_indicator = false;
 enum RunMode
 {
     MODE_DEBUG = 1 << 0,
-    MODE_ONE_COLOR = 1 << 1,
+    MODE_RUNNING = 1 << 1,
 };
-uint32_t g_run_mode = MODE_ONE_COLOR;
+uint32_t g_run_mode = MODE_RUNNING;
+
+ModeHelper* g_mode_helper = new CompositeMode();
 
 void setup()
 {
@@ -55,9 +57,6 @@ void loop()
 
         // do nothing here while debugging
         if(g_run_mode & MODE_DEBUG){ return; }
-
-        // clear everything to black
-        // g_path.clear();
 
         // do mode stuff here
         g_mode_helper->process(g_time_accum);
@@ -93,10 +92,19 @@ void process_serial_input()
             if(index >= 0 && index < g_path.num_segments())
             {
                 g_run_mode = MODE_DEBUG;
+
+                for(uint32_t i = 0; i < g_path.num_segments(); ++i)
+                {
+                    g_path.segment(i)->set_active(index == i);
+                }
                 g_path.segment(index)->set_color(ORANGE);
                 g_path.update(0);
             }
-            else{ g_run_mode = MODE_ONE_COLOR; }
+            else
+            {
+                g_run_mode = MODE_RUNNING;
+                g_mode_helper->reset();
+            }
         }
     }
 }

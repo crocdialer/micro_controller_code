@@ -33,17 +33,6 @@ LED_Path::~LED_Path()
     delete[] m_segments;
 }
 
-// uint32_t LED_Path::num_leds() const
-// {
-//     // uint32_t sum = 0;
-//     // Segment *ptr = m_segments[0], *end_ptr = m_segments[0] + num_segments();
-//     //
-//     // for(;ptr < end_ptr;++ptr){ sum += ptr->length(); }
-//     // return sum;
-//
-//     return num_segments() * SEGMENT_LENGTH;
-// }
-
 void LED_Path::clear()
 {
     memset(m_data, 0, num_leds() * 4);
@@ -64,11 +53,11 @@ void LED_Path::update(uint32_t the_delta_time)
 
         for(;ptr < end_ptr;++ptr)
         {
-            float sin_val = create_sinus_val(ptr - (uint32_t*)m_data);
+            uint32_t current_index = ptr - (uint32_t*)m_data;
+            float sin_val = create_sinus_val(current_index);
             *ptr = fade_color(c, m_brightness * sin_val);
-            ++count;
 
-            if(count >= m_current_max){ goto finished; }
+            if(current_index >= m_current_max){ goto finished; }
         }
     }
 
