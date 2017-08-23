@@ -113,7 +113,7 @@ static inline void print_color(uint32_t the_color)
     Serial.write(buf);
 }
 
-#define PI 3.14159265f
+#define PI 3.1415926535f
 #define PI_2 6.283185307f
 
 class FastSinus
@@ -133,8 +133,8 @@ public:
 
     inline float operator()(float the_val)
     {
-        the_val = fmodf(the_val, PI_2) / (PI_2);
-        int index = (int)(the_val * (m_array_size - 1));
+        int index = (int)(fmodf(the_val, PI_2) / (PI_2) * m_array_size);
+        index += index < 0 ? m_array_size : 0;
         return m_sin_table[index];
     }
 private:

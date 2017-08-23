@@ -26,17 +26,19 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_RUNNING;
 
-ModeHelper* g_mode_helper = new CompositeMode();
+static LED_Path g_path = LED_Path(LED_PIN, PATH_LENGTH);
+ModeHelper* g_mode_helper = new CompositeMode(&g_path);//new Mode_ONE_COLOR(&g_path);
 
 void setup()
 {
+    srand(analogRead(A0));
+
     // drives our status LED
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
     // while(!Serial){ delay(10); }
     Serial.begin(115200);
-
 }
 
 void loop()
@@ -56,10 +58,8 @@ void loop()
         process_serial_input();
 
         // do nothing here while debugging
-        if(g_run_mode & MODE_DEBUG){ return; }
-
-        // do mode stuff here
-        g_mode_helper->process(g_time_accum);
+        if(g_run_mode & MODE_DEBUG){ }
+        else if(g_run_mode & MODE_RUNNING){ g_mode_helper->process(g_time_accum); }
 
         g_path.update(g_time_accum);
 
