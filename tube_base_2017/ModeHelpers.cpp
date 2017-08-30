@@ -58,7 +58,7 @@ void ModeFlash::process(uint32_t the_delta_time)
     if(m_time_accum > m_trigger_time)
     {
         m_path->set_current_max(0);
-        m_path->set_flash_speed(random<uint32_t>(90, 180));//950, 5500
+        m_path->set_flash_speed(random<uint32_t>(m_path->num_leds(), m_path->num_leds() * 4));//950, 5500
         m_trigger_time = random<uint32_t>(m_trigger_time_min, m_trigger_time_max);
         m_time_accum = 0;
     }
