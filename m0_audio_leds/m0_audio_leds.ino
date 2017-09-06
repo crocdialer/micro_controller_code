@@ -3,16 +3,19 @@
 #include "ADC_Sampler.h"
 #include "LED_Path.h"
 
+#define ARM_MATH_CM0
+#include "arm_math.h"
 
 // update rate in Hz
-#define UPDATE_RATE 30
+#define UPDATE_RATE 60
 
 #define ADC_BITS 10
 
 // some pin defines
 #define POTI_PIN A0
 #define MIC_PIN A1
-#define LED_PIN A2
+#define LED_PIN 6
+#define BATTERY_PIN A7
 
 #define SERIAL_BUFSIZE 128
 
@@ -35,13 +38,16 @@ uint32_t g_mic_peak_to_peak = 0;
 // current mic-level in range: [0, 1]
 float g_mic_lvl = 0.f;
 
-float g_gain = 6.f;
+float g_gain = 3.f;
 
 // lvl decay per sec
-float g_mic_decay = 4.f;
+float g_mic_decay = 8.f;
 
 // continuous sampling with timer interrupts and custom ADC settings
 ADC_Sampler g_adc_sampler;
+
+// Run FFT on sample data.
+arm_cfft_radix4_instance_f32 fft_inst;
 
 // helper variables for time measurement
 long g_last_time_stamp = 0;
@@ -58,8 +64,19 @@ bool g_indicator = false;
 LED_Path g_path(LED_PIN, 8);
 
 // Poti
-constexpr uint8_t g_num_poti_samples = 5;
+constexpr uint8_t g_num_poti_samples = 3;
 RunningMedian g_pot_vals(g_num_poti_samples);
+
+float battery_lvl()
+{
+    float measuredvbat = analogRead(BATTERY_PIN);
+
+    // voltage is divided by 2, so multiply back
+    measuredvbat *= 2 * 3.3f / ADC_MAX;
+    // Serial.print("VBat: " );
+    // Serial.println(measuredvbat);
+    return map_value<float>(measuredvbat, 3.f, 4.2f, 0.f, 1.f);
+}
 
 //! value callback from ADC_Sampler ISR
 void adc_callback(uint32_t the_sample)
@@ -77,6 +94,8 @@ void setup()
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
+    pinMode(MIC_PIN, INPUT);
+
     // set ADC resolution (default 10 bits, maximum 12 bits)
     analogReadResolution(ADC_BITS);
 
@@ -85,7 +104,7 @@ void setup()
 
     // start mic sampling
     g_adc_sampler.set_adc_callback(&adc_callback);
-    g_adc_sampler.begin(MIC_PIN, 11000);
+    // g_adc_sampler.begin(MIC_PIN, 22050);
 }
 
 void loop()
@@ -95,18 +114,24 @@ void loop()
     g_last_time_stamp = millis();
     g_time_accum += delta_time;
 
-    // update poti-lvl
-    // g_adc_sampler.end();
+    float bat_lvl = 0.f;
 
-    // for(int i = 0; i < g_num_poti_samples; ++i)
+    adc_callback(analogRead(MIC_PIN));
+
+    // scope is interrupt free
     // {
-    //     g_pot_vals.add(adc_read(POTI_PIN));
+    //     no_interrupt ni;
+    //
+    //     // update poti-lvl
+    //     for(int i = 0; i < g_num_poti_samples; ++i)
+    //     {
+    //         g_pot_vals.add(analogRead(POTI_PIN));
+    //     }
+    //
+    //     bat_lvl = battery_lvl();
     // }
-    // float current_pot = g_pot_vals.getMedian() / ADC_MAX;
-    // g_adc_sampler.begin(MIC_PIN, 22050);
-
-    // update current microphone value
-    process_mic_input(delta_time);
+    // float current_pot = map_value<float>(g_pot_vals.getMedian(), 133, 858, 0.f, 1.f);
+    // Serial.println((int)g_pot_vals.getMedian());
 
     if(g_time_accum >= g_update_interval)
     {
@@ -117,9 +142,12 @@ void loop()
         // read debug inputs
         process_serial_input();
 
-        //TODO: let's go
+        // update current microphone value
+        process_mic_input(g_time_accum);
+
+        // logic goes here
         g_path.set_all_segments(BLACK);
-        int num_segs = g_mic_lvl * g_path.num_segments();
+        int num_segs = clamp<int>(battery_lvl() * g_path.num_segments(), 0, g_path.num_segments());
 
         for(int i = 0; i < num_segs; ++i)
         {
@@ -141,17 +169,18 @@ void process_mic_input(uint32_t the_delta_time)
 
     if(millis() > g_mic_start_millis + g_mic_sample_window)
     {
+        constexpr uint32_t min_thresh = 5;
+
         // max - min = peak-peak amplitude
-        g_mic_peak_to_peak = g_mic_signal_max - g_mic_signal_min;
+        g_mic_peak_to_peak = max(0, g_mic_signal_max - g_mic_signal_min);
+        g_mic_peak_to_peak = g_mic_peak_to_peak > min_thresh ? g_mic_peak_to_peak : 0;
 
         g_mic_signal_max = 0;
         g_mic_signal_min = ADC_MAX;
         g_mic_start_millis = millis();
 
-        g_mic_peak_to_peak = max(0, g_mic_peak_to_peak - 2);
-
         // read mic val
-        float v = clamp<float>(g_gain * g_mic_peak_to_peak / 80.f, 0.f, 1.f);
+        float v = clamp<float>(g_gain * g_mic_peak_to_peak / 31.f, 0.f, 1.f);
 
         g_mic_lvl = max(g_mic_lvl, v);
     }

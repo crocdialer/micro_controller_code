@@ -5,7 +5,7 @@
 #include <Adafruit_Sensor.h>  // not used in this demo but required!
 #include <RunningMedian.h>
 
-#define USE_BLUETOOTH
+// #define USE_BLUETOOTH
 
 // bluetooth communication
 #ifdef USE_BLUETOOTH
@@ -23,13 +23,12 @@
 #include "utils.h"
 #include "ADC_Sampler.h"
 
-#define LED_PIN 12
-#define NUM_LEDS 64
+#define LED_PIN A2
+#define NUM_LEDS 8
 #define BRIGHTNESS 50
 #define BAT_PIN A7
-#define MIC_PIN A1
-#define POTI_PIN A2
-#define BARRIER_INTERRUPT_PIN 6
+#define MIC_PIN A0
+#define POTI_PIN A1
 
 #define ADC_BITS 10
 const float ADC_MAX = (1 << ADC_BITS) - 1.f;
