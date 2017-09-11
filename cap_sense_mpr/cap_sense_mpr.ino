@@ -304,25 +304,25 @@ void loop()
     }
     if(g_time_accum_params > g_update_interval_params)
     {
-        process_serial_input(Serial);
+        process_input(Serial);
         #ifdef USE_BLUETOOTH
-            process_serial_input(g_bt_serial);
+            process_input(g_bt_serial);
         #endif
         #ifdef USE_WIFI
-            process_serial_input(g_wifi_client);
+            process_input(g_wifi_client);
         #endif
         g_time_accum_params = 0;
     }
 }
 
-template <typename T> void process_serial_input(T& the_serial)
+template <typename T> void process_input(T& the_device)
 {
     uint16_t buf_idx = 0;
 
-    while(the_serial.available())
+    while(the_device.available())
     {
         // get the new byte:
-        char c = the_serial.read();
+        char c = the_device.read();
 
         switch(c)
         {
