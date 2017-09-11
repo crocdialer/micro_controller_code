@@ -2,17 +2,24 @@
 #include "Adafruit_MPR121.h"
 #include "RunningMedian.h"
 #include "utils.h"
+#include "Timer.hpp"
 
-#define USE_BLUETOOTH
+#define USE_WIFI
 
-// const uint8_t g_num_commands = 4;
-// const char* g_commands[g_num_commands] =
-// {
-//     "ID",
-//     "START",
-//     "STOP",
-//     "RESET"
-// };
+// #define USE_BLUETOOTH
+
+const int g_update_interval = 33;
+char g_serial_buf[512];
+
+//! time management
+const int g_update_interval_params = 2000;
+int g_time_accum = 0, g_time_accum_params = 0;
+long g_last_time_stamp;
+
+constexpr uint32_t g_num_timers = 1;
+kinski::Timer g_timer[g_num_timers];
+
+enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 
 #define CMD_QUERY_ID "ID"
 #define CMD_START "START"
@@ -30,18 +37,94 @@
 
     const int g_update_interval_bt = 100;
     int g_time_accum_bt = 0;
-#else
-
 #endif
 
-const int g_update_interval = 33;
+#ifdef USE_WIFI
+#include <SPI.h>
+#include <WiFi101.h>
+#include <WiFiUdp.h>
 
-char g_serial_buf[512];
+// // network SSID
+const char* g_wifi_ssid = "egligeil2.4";
 
-//! time management
-const int g_update_interval_params = 2000;
-int g_time_accum = 0, g_time_accum_params = 0;
-long g_last_time_stamp;
+// network pw
+const char* g_wifi_pw = "#LoftFlower!";
+
+// // network SSID
+// const char* g_wifi_ssid = "Sunrise_2.4GHz_BA25E8";
+//
+// // network pw
+// const char* g_wifi_pw = "sJ4C257yyukZ";
+
+// network key index (WEP)
+int g_wifi_key_index = 0;
+
+int g_wifi_status = WL_IDLE_STATUS;
+
+// TCP server
+WiFiServer g_tcp_server(33333);
+
+// TCP connection
+WiFiClient g_wifi_client;
+
+// UDP util
+WiFiUDP g_wifi_udp;
+
+// local ip address
+uint32_t g_local_ip;
+
+// udp-broadcast
+uint32_t g_broadcast_ip;
+uint16_t g_broadcast_port = 55555;
+constexpr float g_broadcast_interval = 2.f;
+
+void send_udp_broadcast()
+{
+    g_wifi_udp.beginPacket(g_broadcast_ip, g_broadcast_port);
+    g_wifi_udp.write(DEVICE_ID);
+    g_wifi_udp.endPacket();
+}
+
+bool setup_wifi()
+{
+    //Configure pins for Adafruit ATWINC1500 Feather
+    WiFi.setPins(8, 7, 4, 2);
+
+    // check for the presence of the shield:
+    if(WiFi.status() == WL_NO_SHIELD)
+    {
+        Serial.println("WiFi shield not present");
+        return false;
+    }
+
+    // attempt to connect to WiFi network:
+    if(g_wifi_status != WL_CONNECTED)
+    {
+        Serial.print("Attempting to connect to SSID: ");
+        Serial.println(g_wifi_ssid);
+
+        // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+        g_wifi_status = WiFi.begin(g_wifi_ssid, g_wifi_pw);
+
+        // wait 10 seconds for connection:
+        delay(10000);
+    }
+    if(g_wifi_status == WL_CONNECTED)
+    {
+         g_tcp_server.begin();
+         g_wifi_udp.begin(33334);
+         g_local_ip = g_broadcast_ip = WiFi.localIP();
+         ((char*) &g_broadcast_ip)[3] = 0xFF;
+
+         g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_broadcast_interval);
+         g_timer[TIMER_UDP_BROADCAST].set_periodic();
+         g_timer[TIMER_UDP_BROADCAST].set_callback(&send_udp_broadcast);
+
+         return true;
+    }
+    return false;
+}
+#endif
 
 bool g_bt_initialized = false;
 
@@ -78,6 +161,10 @@ bool has_uart()
             g_bt_serial.echo(false);
             return true;
         }
+    #endif
+    #ifdef USE_WIFI
+        if(g_wifi_status == WL_CONNECTED){ return true; }
+        else if(setup_wifi()){ return true; }
     #endif
     return Serial;
 }
@@ -117,8 +204,8 @@ void setup()
         g_proxy_medians[i] = RunningMedian(g_num_samples);
     }
 
+    Serial.begin(115200);
     while(!has_uart()){ blink_status_led(); }
-    Serial.begin(57600);
 
     digitalWrite(13, LOW);
 }
@@ -130,6 +217,9 @@ void loop()
     g_last_time_stamp = millis();
     g_time_accum += delta_time;
     g_time_accum_params += delta_time;
+
+    // poll Timer objects
+    for(uint32_t i = 0; i < g_num_timers; ++i){ g_timer[i].poll(); }
 
     #ifdef USE_BLUETOOTH
     g_time_accum_bt += delta_time;
@@ -177,28 +267,49 @@ void loop()
         g_time_accum = 0;
         g_touch_buffer[0] = 0;
 
-        Serial.print(g_serial_buf);
+        Serial.write(g_serial_buf);
 
-#ifdef USE_BLUETOOTH
-        if((g_time_accum_bt >= g_update_interval_bt) && g_bt_serial.isConnected())
+// #ifdef USE_BLUETOOTH
+//         if((g_time_accum_bt >= g_update_interval_bt) && g_bt_serial.isConnected())
+//         {
+//             if(!g_bt_initialized)
+//             {
+//                 g_bt_serial.sendCommandCheckOK("AT+HWModeLED=MODE");
+//                 g_bt_serial.setMode(BLUEFRUIT_MODE_DATA);
+//                 g_bt_initialized = true;
+//             }
+//             g_time_accum_bt = 0;
+//             g_bt_serial.write(g_serial_buf);
+//             // g_bt_serial.flush();
+//         }else if(g_bt_initialized){ g_bt_initialized = false; }
+// #endif
+
+#ifdef USE_WIFI
+        auto new_connection = g_tcp_server.available();
+
+        if(new_connection)
         {
-            if(!g_bt_initialized)
-            {
-                g_bt_serial.sendCommandCheckOK("AT+HWModeLED=MODE");
-                g_bt_serial.setMode(BLUEFRUIT_MODE_DATA);
-                g_bt_initialized = true;
-            }
-            g_time_accum_bt = 0;
-            g_bt_serial.print(g_serial_buf);
-            // g_bt_serial.flush();
-        }else if(g_bt_initialized){ g_bt_initialized = false; }
+            g_timer[TIMER_UDP_BROADCAST].cancel();
+            g_wifi_client = new_connection;
+        }
+
+        if(g_wifi_client.connected()){ g_wifi_client.write(g_serial_buf); }
+        else if(g_wifi_client)
+        {
+            g_wifi_client = WiFiClient();
+            g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_broadcast_interval);
+        }
 #endif
+
     }
     if(g_time_accum_params > g_update_interval_params)
     {
         process_serial_input(Serial);
         #ifdef USE_BLUETOOTH
             process_serial_input(g_bt_serial);
+        #endif
+        #ifdef USE_WIFI
+            process_serial_input(g_wifi_client);
         #endif
         g_time_accum_params = 0;
     }

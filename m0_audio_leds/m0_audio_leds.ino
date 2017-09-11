@@ -41,7 +41,7 @@ float g_mic_lvl = 0.f;
 float g_gain = 3.f;
 
 // lvl decay per sec
-float g_mic_decay = 8.f;
+float g_mic_decay = 2.f;
 
 // continuous sampling with timer interrupts and custom ADC settings
 ADC_Sampler g_adc_sampler;
@@ -69,13 +69,22 @@ RunningMedian g_pot_vals(g_num_poti_samples);
 
 float battery_lvl()
 {
-    float measuredvbat = analogRead(BATTERY_PIN);
-
-    // voltage is divided by 2, so multiply back
-    measuredvbat *= 2 * 3.3f / ADC_MAX;
-    // Serial.print("VBat: " );
-    // Serial.println(measuredvbat);
-    return map_value<float>(measuredvbat, 3.f, 4.2f, 0.f, 1.f);
+    constexpr uint32_t measure_interval = 10000;
+    static uint32_t last_measure = measure_interval;
+    static float ret = 0.f;
+    uint32_t delta_time = millis() - last_measure;
+    
+    if(delta_time >= measure_interval)
+    {
+        ret = analogRead(BATTERY_PIN);
+        last_measure = millis();
+        // voltage is divided by 2, so multiply back
+        ret *= 2 * 3.3f / ADC_MAX;
+        ret = map_value<float>(ret, 3.3f, 4.2f, 0.f, 1.f);
+        // Serial.print("VBat: " );
+        // Serial.println(measuredvbat);
+    }
+    return ret;
 }
 
 //! value callback from ADC_Sampler ISR
@@ -147,13 +156,14 @@ void loop()
 
         // logic goes here
         g_path.set_all_segments(BLACK);
-        int num_segs = clamp<int>(battery_lvl() * g_path.num_segments(), 0, g_path.num_segments());
+        int segs_bat = battery_lvl() * g_path.num_segments();
+        int segs_mic = g_mic_lvl * g_path.num_segments();
 
-        for(int i = 0; i < num_segs; ++i)
+        for(int i = 0; i < g_path.num_segments(); ++i)
         {
-            g_path.segment(i)->set_color(ORANGE);
+            if(i < segs_bat){ g_path.segment(i)->set_color(ORANGE); }
+            if(i < segs_mic){ g_path.segment(i)->set_color(AQUA); }
         }
-
         g_path.update(g_time_accum);
 
         // clear time accumulator
