@@ -138,6 +138,6 @@ public:
         return m_sin_table[index];
     }
 private:
-    static constexpr uint32_t m_array_size = 2000;
+    static constexpr uint32_t m_array_size = 1000;
     float m_sin_table[m_array_size];
 };

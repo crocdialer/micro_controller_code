@@ -1,5 +1,7 @@
 #include "LED_Path.h"
 
+FastSinus LED_Path::s_fast_sin;
+
 Segment::Segment(uint32_t the_length):
 m_length(the_length)
 {
@@ -28,9 +30,12 @@ m_num_segments(the_num_segments)
 
 LED_Path::~LED_Path()
 {
-    delete m_strip;
-    for(uint32_t i = 0; i < m_num_segments; ++i){ delete m_segments[i]; }
-    delete[] m_segments;
+    if(m_strip){ delete m_strip; }
+    if(m_segments)
+    {
+        for(uint32_t i = 0; i < m_num_segments; ++i){ delete m_segments[i]; }
+        delete[] m_segments;
+    }
 }
 
 void LED_Path::clear()

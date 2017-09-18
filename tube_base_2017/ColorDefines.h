@@ -10,4 +10,4 @@ AQUA = Adafruit_NeoPixel::Color(255, 0, 120, 40),
 BLACK = 0;
 
 static const uint32_t g_colors[4] = {ORANGE, AQUA, GREEN, WHITE};
-static const uint32_t g_num_colors = 3;
+static const uint32_t g_num_colors = 1;

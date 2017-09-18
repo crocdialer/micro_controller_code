@@ -5,7 +5,6 @@
 #include "Timer.hpp"
 
 #define USE_WIFI
-
 // #define USE_BLUETOOTH
 
 const int g_update_interval = 33;
@@ -22,9 +21,6 @@ kinski::Timer g_timer[g_num_timers];
 enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 
 #define CMD_QUERY_ID "ID"
-#define CMD_START "START"
-#define CMD_STOP "STOP"
-#define CMD_RESET "RESET"
 #define DEVICE_ID "CAPACITIVE_SENSOR"
 
 // bluetooth communication

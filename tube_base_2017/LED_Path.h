@@ -5,10 +5,9 @@
 #include "ColorDefines.h"
 #include <Adafruit_NeoPixel.h>
 
-#define TUBE_LENGTH 58
+#define TUBE_LENGTH 300
 #define SEGMENT_LENGTH TUBE_LENGTH // (2 tubes, each 58 px)
-#define PATH_LENGTH 4
-#define LED_PIN 6
+#define PATH_LENGTH 1
 
 class Segment
 {
@@ -28,6 +27,7 @@ private:
 class LED_Path
 {
 public:
+    LED_Path(){};
     LED_Path(uint32_t the_pin, uint32_t the_num_segments);
     ~LED_Path();
 
@@ -51,10 +51,10 @@ public:
 private:
 
     float m_sinus_factors[2] = {PI_2, PI * 7.3132f};
-    float m_sinus_speeds[2] = {-15, 1};
+    float m_sinus_speeds[2] = {-22.5, 1};
     float m_sinus_offsets[2] = {0, 211};
 
-    FastSinus m_fast_sin;
+    static FastSinus s_fast_sin;
 
     inline float create_sinus_val(uint32_t the_index)
     {
@@ -62,16 +62,16 @@ private:
 
         for(uint32_t i = 0; i < 2; ++i)
         {
-            float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / TUBE_LENGTH;
-            ret *= (m_fast_sin(val) + 1.f) / 2.f;
+            float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / (TUBE_LENGTH / 5.f);
+            ret *= (s_fast_sin(val) + 1.f) / 2.f;
         }
         return clamp(ret, 0.05f, 1.f);
     }
 
-    uint8_t* m_data;
-    Adafruit_NeoPixel* m_strip;
+    uint8_t* m_data = nullptr;
+    Adafruit_NeoPixel* m_strip = nullptr;
     uint32_t m_num_segments;
-    Segment** m_segments;
+    Segment** m_segments = nullptr;
     float m_brightness = .4f;
 
     float m_current_max;
