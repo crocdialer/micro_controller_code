@@ -41,16 +41,12 @@ enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 #include <WiFiUdp.h>
 
 // // network SSID
-const char* g_wifi_ssid = "egligeil2.4";
-
-// network pw
-const char* g_wifi_pw = "#LoftFlower!";
-
-// // network SSID
-// const char* g_wifi_ssid = "Sunrise_2.4GHz_BA25E8";
-//
-// // network pw
-// const char* g_wifi_pw = "sJ4C257yyukZ";
+constexpr uint32_t g_num_known_networks = 2;
+const char* g_wifi_known_networks[2 * g_num_known_networks] =
+{
+    "egligeil2.4", "#LoftFlower!",
+    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ"
+};
 
 // network key index (WEP)
 int g_wifi_key_index = 0;
@@ -96,14 +92,20 @@ bool setup_wifi()
     // attempt to connect to WiFi network:
     if(g_wifi_status != WL_CONNECTED)
     {
-        Serial.print("Attempting to connect to SSID: ");
-        Serial.println(g_wifi_ssid);
+        for(uint32_t i = 0; i < g_num_known_networks; ++i)
+        {
+            Serial.print("Attempting to connect to SSID: ");
+            Serial.println(g_wifi_known_networks[2 * i]);
 
-        // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-        g_wifi_status = WiFi.begin(g_wifi_ssid, g_wifi_pw);
+            // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+            g_wifi_status = WiFi.begin(g_wifi_known_networks[2 * i],
+                                       g_wifi_known_networks[2 * i + 1]);
 
-        // wait 10 seconds for connection:
-        delay(10000);
+            // wait 10 seconds for connection:
+            delay(10000);
+
+            if(g_wifi_status == WL_CONNECTED){ break; }
+        }
     }
     if(g_wifi_status == WL_CONNECTED)
     {
@@ -199,7 +201,6 @@ void setup()
 
         g_proxy_medians[i] = RunningMedian(g_num_samples);
     }
-
     Serial.begin(115200);
     while(!has_uart()){ blink_status_led(); }
 

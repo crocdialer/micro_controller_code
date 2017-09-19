@@ -5,9 +5,9 @@
 #include "ColorDefines.h"
 #include <Adafruit_NeoPixel.h>
 
-#define TUBE_LENGTH 300
+#define TUBE_LENGTH 58
 #define SEGMENT_LENGTH TUBE_LENGTH // (2 tubes, each 58 px)
-#define PATH_LENGTH 1
+#define PATH_LENGTH 4
 
 class Segment
 {
@@ -51,7 +51,7 @@ public:
 private:
 
     float m_sinus_factors[2] = {PI_2, PI * 7.3132f};
-    float m_sinus_speeds[2] = {-22.5, 1};
+    float m_sinus_speeds[2] = {-15, 1};
     float m_sinus_offsets[2] = {0, 211};
 
     static FastSinus s_fast_sin;
@@ -62,7 +62,7 @@ private:
 
         for(uint32_t i = 0; i < 2; ++i)
         {
-            float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / (TUBE_LENGTH / 5.f);
+            float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / (TUBE_LENGTH /*/ 5.f*/);
             ret *= (s_fast_sin(val) + 1.f) / 2.f;
         }
         return clamp(ret, 0.05f, 1.f);

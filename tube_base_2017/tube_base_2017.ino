@@ -26,13 +26,13 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_RUNNING;
 
-constexpr uint8_t g_num_paths = 2;
-const uint8_t g_led_pins[g_num_paths] = {5, 6};
+constexpr uint8_t g_num_paths = 1;
+const uint8_t g_led_pins[g_num_paths] = {6};
 
 LED_Path g_path[g_num_paths] =
 {
-    LED_Path(g_led_pins[0], PATH_LENGTH),
-    LED_Path(g_led_pins[1], PATH_LENGTH)
+    LED_Path(g_led_pins[0], PATH_LENGTH)
+    // LED_Path(g_led_pins[1], PATH_LENGTH)
 };
 ModeHelper* g_mode_helper[g_num_paths];
 
@@ -106,23 +106,23 @@ void process_serial_input()
 
             Serial.println(index);
 
-            // if(index >= 0 && index < g_path.num_segments())
-            if(index >= 0 && index < g_num_paths)
+            if(index >= 0 && index < g_path[0].num_segments())
+            // if(index >= 0 && index < g_num_paths)
             {
                 g_run_mode = MODE_DEBUG;
 
-                // for(uint32_t i = 0; i < g_path.num_segments(); ++i)
-                // {
-                //     g_path.segment(i)->set_active(index == i);
-                // }
-                // g_path.segment(index)->set_color(ORANGE);
-                // g_path.update(0);
-
-                for(uint8_t i = 0; i < g_num_paths; ++i)
+                for(uint32_t i = 0; i < g_path[0].num_segments(); ++i)
                 {
-                    g_path[i].set_all_segments(index == i ? ORANGE : BLACK);
-                    g_path[i].update(g_time_accum);
+                    g_path[0].segment(i)->set_active(index == i);
                 }
+                g_path[0].segment(index)->set_color(ORANGE);
+                g_path[0].update(0);
+
+                // for(uint8_t i = 0; i < g_num_paths; ++i)
+                // {
+                //     g_path[i].set_all_segments(index == i ? ORANGE : BLACK);
+                //     g_path[i].update(g_time_accum);
+                // }
             }
             else
             {
