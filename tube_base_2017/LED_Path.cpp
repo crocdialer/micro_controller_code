@@ -18,7 +18,7 @@ m_num_segments(the_num_segments)
         m_segments[i] = new Segment(SEGMENT_LENGTH);
     }
 
-    m_strip = new Adafruit_NeoPixel(SEGMENT_LENGTH * the_num_segments, the_pin, NEO_GRBW + NEO_KHZ800);
+    m_strip = new Adafruit_NeoPixel(SEGMENT_LENGTH * the_num_segments, the_pin, CURRENT_LED_TYPE);
     m_strip->begin();
     m_strip->setBrightness(255 * m_brightness);
     m_strip->show(); // Initialize all pixels to 'off'
@@ -40,7 +40,7 @@ LED_Path::~LED_Path()
 
 void LED_Path::clear()
 {
-    memset(m_data, 0, num_leds() * 4);
+    memset(m_data, 0, num_leds() * BYTES_PER_PIXEL);
 }
 
 void LED_Path::update(uint32_t the_delta_time)
@@ -51,16 +51,18 @@ void LED_Path::update(uint32_t the_delta_time)
     {
         if(!m_segments[i]->active()){ continue; }
         uint32_t c = m_segments[i]->color();
-        uint32_t *ptr = (uint32_t*)m_data + i * SEGMENT_LENGTH;
-        uint32_t *end_ptr = ptr + SEGMENT_LENGTH;
+        uint8_t *ptr = m_data + i * SEGMENT_LENGTH * BYTES_PER_PIXEL;
+        uint8_t *end_ptr = ptr + SEGMENT_LENGTH * BYTES_PER_PIXEL;
 
-        for(;ptr < end_ptr;++ptr)
+        for(;ptr < end_ptr; ptr += BYTES_PER_PIXEL)
         {
-            uint32_t current_index = ptr - (uint32_t*)m_data;
+            uint32_t current_index = (ptr - m_data) / BYTES_PER_PIXEL;
             if(current_index >= m_current_max){ goto finished; }
 
             float sin_val = create_sinus_val(current_index);
-            *ptr = fade_color(c, m_brightness * sin_val);
+            // *ptr = fade_color(c, m_brightness * sin_val);
+            uint32_t fade_col = fade_color(c, m_brightness * sin_val);
+            memcpy(ptr, &fade_col, BYTES_PER_PIXEL);
         }
     }
 
