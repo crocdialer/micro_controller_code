@@ -53,25 +53,28 @@ public:
     void set_current_max(uint32_t the_max){ m_current_max = the_max; }
     void set_flash_speed(float the_speed){ m_flash_speed = the_speed; }
     void set_flash_direction(bool b){ m_flash_forward = b; }
+    void set_sinus_offsets(float a, float b){ m_sinus_offsets[0] = a; m_sinus_offsets[1] = b;}
 
 private:
 
     float m_sinus_factors[2] = {PI_2, PI * 7.3132f};
-    float m_sinus_speeds[2] = {-15, 1};
+    float m_sinus_speeds[2] = {-15, -2};
     float m_sinus_offsets[2] = {0, 211};
 
     static FastSinus s_fast_sin;
 
     inline float create_sinus_val(uint32_t the_index)
     {
-        float ret = 1.f;
+        float ret = 0.f;
+        constexpr uint32_t num_sinus = 2;
 
-        for(uint32_t i = 0; i < 2; ++i)
+        for(uint32_t i = 0; i < num_sinus; ++i)
         {
             float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / (TUBE_LENGTH /*/ 5.f*/);
-            ret *= (s_fast_sin(val) + 1.f) / 2.f;
+            // ret *= (s_fast_sin(val) + 1.f) / 2.f;
+            ret += s_fast_sin(val);
         }
-        return clamp(ret, 0.f, 1.f);
+        return clamp(ret / num_sinus, 0.f, 1.f);
     }
 
     uint8_t* m_data = nullptr;

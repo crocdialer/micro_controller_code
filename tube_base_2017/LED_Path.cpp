@@ -51,6 +51,8 @@ void LED_Path::update(uint32_t the_delta_time)
     {
         if(!m_segments[i]->active()){ continue; }
         uint32_t c = m_segments[i]->color();
+        swap(((uint8_t*) &c)[0], ((uint8_t*) &c)[1]);
+
         uint8_t *ptr = m_data + i * SEGMENT_LENGTH * BYTES_PER_PIXEL;
         uint8_t *end_ptr = ptr + SEGMENT_LENGTH * BYTES_PER_PIXEL;
 
@@ -60,7 +62,6 @@ void LED_Path::update(uint32_t the_delta_time)
             if(current_index >= m_current_max){ goto finished; }
 
             float sin_val = create_sinus_val(current_index);
-            // *ptr = fade_color(c, m_brightness * sin_val);
             uint32_t fade_col = fade_color(c, m_brightness * sin_val);
             memcpy(ptr, &fade_col, BYTES_PER_PIXEL);
         }

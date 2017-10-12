@@ -34,7 +34,7 @@ ModeHelper* g_mode_helper[g_num_paths];
 
 void setup()
 {
-    srand(analogRead(A0));
+    srand(analogRead(A8));
 
     // drives our status LED
     pinMode(13, OUTPUT);
@@ -47,6 +47,7 @@ void setup()
     for(uint8_t i = 0; i < g_num_paths; ++i)
     {
          g_path[i] = new LED_Path(g_led_pins[i], PATH_LENGTH);
+         g_path[i]->set_sinus_offsets(random<int>(0, 256), random<int>(0, 256));
          g_mode_helper[i] = new Mode_ONE_COLOR(g_path[i]);//new CompositeMode(&g_path);
     }
 }

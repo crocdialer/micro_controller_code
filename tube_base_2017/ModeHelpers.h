@@ -31,7 +31,7 @@ public:
     void reset() override;
 
 private:
-    uint32_t m_next_color = ORANGE;
+    uint32_t m_next_color = g_colors[0];
 };
 
 class ModeFlash : public ModeHelper
