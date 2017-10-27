@@ -7,11 +7,6 @@
 
 #include "Timer.hpp"
 
-constexpr uint32_t g_num_timers = 1;
-kinski::Timer g_timer[g_num_timers];
-
-enum TimerEnum{TIMER_UDP_BROADCAST = 0};
-
 #define CMD_QUERY_ID "ID"
 #define DEVICE_ID "LEDS"
 
@@ -32,7 +27,10 @@ int g_wifi_status = WL_IDLE_STATUS;
 WiFiServer g_tcp_server(33333);
 
 // TCP connection
-WiFiClient g_wifi_client;
+constexpr uint8_t g_max_num_wifi_clients = 2;
+uint8_t g_num_wifi_clients = 0;
+
+WiFiClient g_wifi_clients[g_max_num_wifi_clients];
 
 // UDP util
 WiFiUDP g_wifi_udp;
@@ -45,6 +43,8 @@ uint32_t g_broadcast_ip;
 uint16_t g_broadcast_port = 55555;
 constexpr float g_broadcast_interval = 2.f;
 
+kinski::Timer *g_wifi_timer = nullptr;
+
 void send_udp_broadcast()
 {
     g_wifi_udp.beginPacket(g_broadcast_ip, g_broadcast_port);
@@ -52,8 +52,11 @@ void send_udp_broadcast()
     g_wifi_udp.endPacket();
 }
 
-bool setup_wifi()
+bool setup_wifi(kinski::Timer *timer)
 {
+    if(g_wifi_timer){ g_wifi_timer->cancel(); }
+    g_wifi_timer = timer;
+
     //Configure pins for Adafruit ATWINC1500 Feather
     WiFi.setPins(8, 7, 4, 2);
 
@@ -89,12 +92,52 @@ bool setup_wifi()
          g_local_ip = g_broadcast_ip = WiFi.localIP();
          ((char*) &g_broadcast_ip)[3] = 0xFF;
 
-         g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_broadcast_interval);
-         g_timer[TIMER_UDP_BROADCAST].set_periodic();
-         g_timer[TIMER_UDP_BROADCAST].set_callback(&send_udp_broadcast);
+         g_wifi_timer->expires_from_now(g_broadcast_interval);
+         g_wifi_timer->set_periodic();
+         g_wifi_timer->set_callback(&send_udp_broadcast);
 
          return true;
     }
     return false;
 }
+
+void update_connections()
+{
+    if(g_wifi_status == WL_CONNECTED)
+    {
+        auto new_connection = g_tcp_server.available();
+
+        if(new_connection)
+        {
+            // g_wifi_timer->cancel();
+            bool slot_available = false;
+
+            for(uint8_t i = 0; i < g_max_num_wifi_clients; ++i)
+            {
+                if(!g_wifi_clients[i].connected())
+                {
+                     g_wifi_clients[i] = new_connection;
+                     slot_available = true;
+                     break;
+                }
+            }
+
+            if(!slot_available)
+            {
+                 Serial.println("could not connect tcp-client: max num connections hit");
+            }
+        }
+
+        // if(g_wifi_client.connected())
+        // {
+        //     //  g_wifi_client.write(g_serial_buf);
+        // }
+        // else if(g_wifi_client)
+        // {
+        //     g_wifi_client = WiFiClient();
+        //     g_wifi_timer->expires_from_now(g_broadcast_interval);
+        // }
+    }
+}
+
 #endif

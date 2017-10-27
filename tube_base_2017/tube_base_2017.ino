@@ -4,6 +4,7 @@
 
 #ifdef USE_WIFI
 #include "wifi_helper.h"
+enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 #endif
 
 // update rate in Hz
@@ -19,6 +20,9 @@ uint32_t g_time_accum = 0;
 
 // update interval in millis
 const int g_update_interval = 1000 / UPDATE_RATE;
+
+constexpr uint32_t g_num_timers = 1;
+kinski::Timer g_timer[g_num_timers];
 
 // helper for flashing PIN 13 (red onboard LED)
 // to indicate update frequency
@@ -59,7 +63,7 @@ void setup()
     }
 
     #ifdef USE_WIFI
-    setup_wifi();
+    setup_wifi(&g_timer[TIMER_UDP_BROADCAST]);
     #endif
 }
 
@@ -70,10 +74,8 @@ void loop()
     g_last_time_stamp = millis();
     g_time_accum += delta_time;
 
-    #ifdef USE_WIFI
     // poll Timer objects
     for(uint32_t i = 0; i < g_num_timers; ++i){ g_timer[i].poll(); }
-    #endif
 
     if(g_time_accum >= g_update_interval)
     {
@@ -83,6 +85,10 @@ void loop()
 
         // read debug inputs
         process_input(Serial);
+
+        #ifdef USE_WIFI
+        update_connections();
+        #endif
 
         // do nothing here while debugging
         if(g_run_mode & MODE_DEBUG){ }
