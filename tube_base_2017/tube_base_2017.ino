@@ -1,5 +1,11 @@
 #include "ModeHelpers.h"
 
+#define USE_WIFI
+
+#ifdef USE_WIFI
+#include "wifi_helper.h"
+#endif
+
 // update rate in Hz
 #define UPDATE_RATE 60
 #define SERIAL_BUFSIZE 128
@@ -26,15 +32,16 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_RUNNING;
 
-constexpr uint8_t g_num_paths = 7;
-const uint8_t g_led_pins[] = {9, 10, 11, 12, A0, A1, A2};
+constexpr uint8_t g_num_paths = 1;
+constexpr uint8_t g_path_length = 5;
+const uint8_t g_led_pins[] = {6};
 
 LED_Path* g_path[g_num_paths];
 ModeHelper* g_mode_helper[g_num_paths];
 
 void setup()
 {
-    srand(analogRead(A8));
+    srand(analogRead(A7));
 
     // drives our status LED
     pinMode(13, OUTPUT);
@@ -46,10 +53,14 @@ void setup()
     // init path objects with pin array
     for(uint8_t i = 0; i < g_num_paths; ++i)
     {
-         g_path[i] = new LED_Path(g_led_pins[i], PATH_LENGTH);
+         g_path[i] = new LED_Path(g_led_pins[i], g_path_length);
          g_path[i]->set_sinus_offsets(random<int>(0, 256), random<int>(0, 256));
          g_mode_helper[i] = new Mode_ONE_COLOR(g_path[i]);//new CompositeMode(&g_path);
     }
+
+    #ifdef USE_WIFI
+    setup_wifi();
+    #endif
 }
 
 void loop()
@@ -59,6 +70,11 @@ void loop()
     g_last_time_stamp = millis();
     g_time_accum += delta_time;
 
+    #ifdef USE_WIFI
+    // poll Timer objects
+    for(uint32_t i = 0; i < g_num_timers; ++i){ g_timer[i].poll(); }
+    #endif
+
     if(g_time_accum >= g_update_interval)
     {
         // flash red indicator LED
@@ -66,7 +82,7 @@ void loop()
         g_indicator = !g_indicator;
 
         // read debug inputs
-        process_serial_input();
+        process_input(Serial);
 
         // do nothing here while debugging
         if(g_run_mode & MODE_DEBUG){ }
@@ -82,12 +98,12 @@ void loop()
     }
 }
 
-void process_serial_input()
+template <typename T> void process_input(T& the_device)
 {
-    while(Serial.available())
+    while(the_device.available())
     {
         // get the new byte:
-        uint8_t c = Serial.read();
+        uint8_t c = the_device.read();
         if(c == '\0'){ continue; }
 
         // add it to the buf
@@ -103,23 +119,23 @@ void process_serial_input()
 
             Serial.println(index);
 
-            // if(index >= 0 && index < g_path[0].num_segments())
-            if(index >= 0 && index < g_num_paths)
+            if(index >= 0 && index < g_path[0]->num_segments())
+            // if(index >= 0 && index < g_num_paths)
             {
                 g_run_mode = MODE_DEBUG;
 
-                // for(uint32_t i = 0; i < g_path[0].num_segments(); ++i)
-                // {
-                //     g_path[0].segment(i)->set_active(index == i);
-                // }
-                // g_path[0].segment(index)->set_color(ORANGE);
-                // g_path[0].update(0);
-
-                for(uint8_t i = 0; i < g_num_paths; ++i)
+                for(uint32_t i = 0; i < g_path[0]->num_segments(); ++i)
                 {
-                    g_path[i]->set_all_segments(index == i ? ORANGE : BLACK);
-                    g_path[i]->update(g_time_accum);
+                    g_path[0]->segment(i)->set_active(index == i);
                 }
+                g_path[0]->segment(index)->set_color(ORANGE);
+                g_path[0]->update(0);
+
+                // for(uint8_t i = 0; i < g_num_paths; ++i)
+                // {
+                //     g_path[i]->set_all_segments(index == i ? ORANGE : BLACK);
+                //     g_path[i]->update(g_time_accum);
+                // }
             }
             else
             {

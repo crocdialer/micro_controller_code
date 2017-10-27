@@ -5,15 +5,14 @@
 #include "ColorDefines.h"
 #include <Adafruit_NeoPixel.h>
 
-#define CURRENT_LED_TYPE (NEO_RGB + NEO_KHZ800)
-#define BYTES_PER_PIXEL 3
+// #define CURRENT_LED_TYPE (NEO_RGB + NEO_KHZ800)
+// #define BYTES_PER_PIXEL 3
 
-// #define CURRENT_LED_TYPE (NEO_RGBW + NEO_KHZ800)
-// #define BYTES_PER_PIXEL 4
+#define CURRENT_LED_TYPE (NEO_RGBW + NEO_KHZ800)
+#define BYTES_PER_PIXEL 4
 
-#define TUBE_LENGTH 50
+#define TUBE_LENGTH 58
 #define SEGMENT_LENGTH TUBE_LENGTH // (2 tubes, each 58 px)
-#define PATH_LENGTH 1
 
 class Segment
 {
@@ -81,7 +80,7 @@ private:
     Adafruit_NeoPixel* m_strip = nullptr;
     uint32_t m_num_segments;
     Segment** m_segments = nullptr;
-    float m_brightness = .8f;
+    float m_brightness = .4f;
 
     float m_current_max;
     float m_flash_speed = 800.f;
