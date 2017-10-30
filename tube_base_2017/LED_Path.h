@@ -70,10 +70,9 @@ private:
         for(uint32_t i = 0; i < num_sinus; ++i)
         {
             float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / (TUBE_LENGTH /*/ 5.f*/);
-            // ret *= (s_fast_sin(val) + 1.f) / 2.f;
             ret += s_fast_sin(val);
         }
-        return clamp(ret / num_sinus, 0.f, 1.f);
+        return clamp((ret / num_sinus + 1.f) / 2.f, 0.05f, 1.f);
     }
 
     uint8_t* m_data = nullptr;

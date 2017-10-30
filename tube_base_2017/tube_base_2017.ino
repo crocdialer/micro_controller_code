@@ -1,9 +1,12 @@
 #include "ModeHelpers.h"
+#include "Timer.hpp"
+#include "device_id.h"
 
 #define USE_WIFI
 
 #ifdef USE_WIFI
-#include "wifi_helper.h"
+#include "WifiHelper.h"
+WifiHelper* g_wifi_helper = WifiHelper::get();
 enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 #endif
 
@@ -59,12 +62,12 @@ void setup()
     {
          g_path[i] = new LED_Path(g_led_pins[i], g_path_length);
          g_path[i]->set_sinus_offsets(random<int>(0, 256), random<int>(0, 256));
-         g_mode_helper[i] = new Mode_ONE_COLOR(g_path[i]);//new CompositeMode(&g_path);
+         g_mode_helper[i] = new Mode_ONE_COLOR(g_path[i]);//CompositeMode
     }
 
-    #ifdef USE_WIFI
-    setup_wifi(&g_timer[TIMER_UDP_BROADCAST]);
-    #endif
+#ifdef USE_WIFI
+    g_wifi_helper->setup_wifi(&g_timer[TIMER_UDP_BROADCAST]);
+#endif
 }
 
 void loop()
@@ -86,9 +89,12 @@ void loop()
         // read debug inputs
         process_input(Serial);
 
-        #ifdef USE_WIFI
-        update_connections();
-        #endif
+#ifdef USE_WIFI
+        g_wifi_helper->update_connections();
+        uint32_t num_connections = 0;
+        auto wifi_clients = g_wifi_helper->connected_clients(&num_connections);
+        for(uint8_t i = 0; i < num_connections; ++i){ process_input(*wifi_clients[i]); }
+#endif
 
         // do nothing here while debugging
         if(g_run_mode & MODE_DEBUG){ }
