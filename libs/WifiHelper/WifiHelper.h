@@ -46,9 +46,7 @@ private:
     // TCP server
     WiFiServer m_tcp_server{33333};
 
-    // TCP connection
-    uint8_t m_num_wifi_clients = 0;
-    WiFiClient m_wifi_clients[m_max_num_wifi_clients];
+    // scratch space for refs to active TCP connections
     WiFiClient* m_wifi_clients_scratch[m_max_num_wifi_clients];
 
     // UDP util
