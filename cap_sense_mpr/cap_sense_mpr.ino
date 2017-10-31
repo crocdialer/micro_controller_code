@@ -7,7 +7,6 @@
 #include "Timer.hpp"
 
 #define USE_WIFI
-// #define USE_BLUETOOTH
 
 const int g_update_interval = 33;
 char g_serial_buf[512];
@@ -20,18 +19,6 @@ long g_last_time_stamp;
 constexpr uint32_t g_num_timers = 1;
 kinski::Timer g_timer[g_num_timers];
 enum TimerEnum{TIMER_UDP_BROADCAST = 0};
-
-// bluetooth communication
-#ifdef USE_BLUETOOTH
-    #include "Adafruit_BluefruitLE_SPI.h"
-    #define BLUEFRUIT_SPI_CS 8
-    #define BLUEFRUIT_SPI_IRQ 7
-    #define BLUEFRUIT_SPI_RST 4    // Optional but recommended, set to -1 if unused
-    Adafruit_BluefruitLE_SPI g_bt_serial(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
-
-    const int g_update_interval_bt = 100;
-    int g_time_accum_bt = 0;
-#endif
 
 #ifdef USE_WIFI
 #include "WifiHelper.h"
@@ -58,8 +45,6 @@ void send_udp_broadcast()
 };
 #endif
 
-bool g_bt_initialized = false;
-
 //! number of capacitve touch sensors used
 #define NUM_SENSORS 1
 
@@ -83,19 +68,6 @@ uint16_t g_touch_buffer[NUM_SENSORS];
 const uint8_t g_thresh_touch = 12;
 const uint8_t g_thresh_release = 6;
 const uint8_t g_charge_time = 0;
-
-bool has_uart()
-{
-    #ifdef USE_BLUETOOTH
-        // bluetooth config
-        if(g_bt_initialized || g_bt_serial.begin(false))
-        {
-            g_bt_serial.echo(false);
-            return true;
-        }
-    #endif
-    return Serial;
-}
 
 void blink_status_led()
 {
@@ -157,10 +129,6 @@ void loop()
     // poll Timer objects
     for(uint32_t i = 0; i < g_num_timers; ++i){ g_timer[i].poll(); }
 
-    #ifdef USE_BLUETOOTH
-    g_time_accum_bt += delta_time;
-    #endif
-
     uint16_t touch_states = 0;
 
     for(uint8_t i = 0; i < NUM_SENSORS; i++)
@@ -203,51 +171,24 @@ void loop()
         g_time_accum = 0;
         g_touch_buffer[0] = 0;
 
+        // IO -> Serial
+        process_input(Serial);
         Serial.write(g_serial_buf);
 
-// #ifdef USE_BLUETOOTH
-//         if((g_time_accum_bt >= g_update_interval_bt) && g_bt_serial.isConnected())
-//         {
-//             if(!g_bt_initialized)
-//             {
-//                 g_bt_serial.sendCommandCheckOK("AT+HWModeLED=MODE");
-//                 g_bt_serial.setMode(BLUEFRUIT_MODE_DATA);
-//                 g_bt_initialized = true;
-//             }
-//             g_time_accum_bt = 0;
-//             g_bt_serial.write(g_serial_buf);
-//             // g_bt_serial.flush();
-//         }else if(g_bt_initialized){ g_bt_initialized = false; }
-// #endif
-
 #ifdef USE_WIFI
+        // IO -> TCP
         g_wifi_helper->update_connections();
         uint32_t num_connections = 0;
         auto wifi_clients = g_wifi_helper->connected_clients(&num_connections);
 
-        for(uint8_t i = 0; i < num_connections; ++i)
+        for(uint32_t i = 0; i < num_connections; ++i)
         {
-            wifi_clients[i]->write(g_serial_buf);
+             process_input(*wifi_clients[i]);
+             wifi_clients[i]->write(g_serial_buf);
         }
+        g_wifi_helper->tcp_server().write(g_serial_buf);
 #endif
 
-    }
-    if(g_time_accum_params > g_update_interval_params)
-    {
-        process_input(Serial);
-        #ifdef USE_BLUETOOTH
-            process_input(g_bt_serial);
-        #endif
-        #ifdef USE_WIFI
-            uint32_t num_connections = 0;
-            auto wifi_clients = g_wifi_helper->connected_clients(&num_connections);
-
-            for(uint8_t i = 0; i < num_connections; ++i)
-            {
-                process_input(*wifi_clients[i]);
-            }
-        #endif
-        g_time_accum_params = 0;
     }
 }
 
@@ -315,8 +256,6 @@ void parse_line(char *the_line)
         {
             g_cap_sensors[i].setThresholds(num_buf[0], num_buf[1]);
             g_cap_sensors[i].setChargeCurrentAndTime(num_buf[2], g_charge_time);
-            //  sprintf(g_serial_buf, "touch: %d -- release: %d\n", num_buf[0], num_buf[1]);
-            //  Serial.print(g_serial_buf);
         }
     }
 }

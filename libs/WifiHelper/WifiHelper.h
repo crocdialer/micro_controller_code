@@ -27,10 +27,14 @@ public:
     //!
     void set_tcp_listening_port(uint16_t the_port);
 
+    WiFiServer& tcp_server();
+
+    WiFiUDP& udp_server();
+
 private:
 
     static WifiHelper* s_instance;
-    static constexpr uint8_t m_max_num_wifi_clients = 2;
+    static constexpr uint8_t m_max_num_wifi_clients = 3;
 
     WifiHelper();
 

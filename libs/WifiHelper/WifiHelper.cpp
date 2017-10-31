@@ -1,3 +1,4 @@
+#include "WiFi101.h"
 #include "WifiHelper.h"
 
 /////////////////////////////// WifiHelper IMPL ///////////////////////////////////////////
@@ -20,9 +21,20 @@ void WifiHelper::send_udp_broadcast(const char* the_string, uint16_t the_port)
     m_wifi_udp.endPacket();
 }
 
-WiFiClient** WifiHelper::connected_clients(uint32_t *num_clients)
+WiFiClient** WifiHelper::connected_clients(uint32_t *the_num_clients)
 {
-    if(num_clients){ *num_clients = m_num_wifi_clients; }
+    uint8_t num_clients = 0;
+
+    for(uint8_t i = 0; i < TCP_SOCK_MAX; ++i)
+    {
+        WiFiClient* client = WiFi._client[i];
+
+        if(client && client->connected())
+        {
+            m_wifi_clients_scratch[num_clients++] = client;
+        }
+    }
+    if(the_num_clients){ *the_num_clients = num_clients; }
     return m_wifi_clients_scratch;
 }
 
@@ -82,28 +94,18 @@ void WifiHelper::update_connections()
 
         if(new_connection)
         {
-            bool has_empty_slot = false;
-
-            for(uint8_t i = 0; i < m_max_num_wifi_clients; ++i)
-            {
-                if(!m_wifi_clients[i].connected())
-                {
-                     m_wifi_clients[i] = new_connection;
-                     has_empty_slot = true;
-                     break;
-                }
-            }
+            // nothing to be done here ...
+            // retrieve the connection later with the intrinsic voodoo of this shit implementation
         }
     }
-    uint8_t num_connections = 0;
+}
 
-    for(uint8_t i = 0; i < m_max_num_wifi_clients; ++i)
-    {
-        if(m_wifi_clients[i].connected())
-        {
-            ++num_connections;
-            m_wifi_clients_scratch[i] = &m_wifi_clients[i];
-        }
-    }
-    m_num_wifi_clients = num_connections;
+WiFiServer& WifiHelper::tcp_server()
+{
+    return m_tcp_server;
+}
+
+WiFiUDP& WifiHelper::udp_server()
+{
+    return m_wifi_udp;
 }
