@@ -5,37 +5,37 @@
 #include <WiFi101.h>
 #include <WiFiUdp.h>
 
-#include "Timer.hpp"
-#include "device_id.h"
-
-// // network SSID
-static constexpr uint32_t g_num_known_networks = 2;
-static const char* g_wifi_known_networks[2 * g_num_known_networks] =
-{
-    "egligeil2.4", "#LoftFlower!",
-    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
-};
-
 class WifiHelper
 {
 public:
-    bool setup_wifi(kinski::Timer *timer = nullptr);
+
+    //! singleton
+    static WifiHelper* get();
+
+    //!
+    bool setup_wifi(const char** the_known_networks, uint8_t the_num_networks);
+
+    //!
     WiFiClient** connected_clients(uint32_t *num_clients = nullptr);
+
+    //!
     void update_connections();
 
-    static WifiHelper* get();
-    ~WifiHelper();
-    void send_udp_broadcast(const char* the_string);
+    //!
+    void send_udp_broadcast(const char* the_string, uint16_t the_port);
+
+    //!
+    void set_tcp_listening_port(uint16_t the_port);
 
 private:
 
     static WifiHelper* s_instance;
     static constexpr uint8_t m_max_num_wifi_clients = 2;
 
-    WifiHelper(){};
+    WifiHelper();
 
     // network key index (WEP)
-    int g_wifi_key_index = 0;
+    int m_wifi_key_index = 0;
 
     int m_wifi_status = WL_IDLE_STATUS;
 
@@ -55,11 +55,6 @@ private:
 
     // udp-broadcast
     uint32_t m_broadcast_ip;
-    uint16_t m_broadcast_port = 55555;
-    float m_broadcast_interval = 2.f;
-
-    bool m_owns_timer = false;
-    kinski::Timer *m_wifi_timer = nullptr;
 };
 
 #endif

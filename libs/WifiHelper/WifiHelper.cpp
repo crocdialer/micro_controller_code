@@ -2,10 +2,10 @@
 
 /////////////////////////////// WifiHelper IMPL ///////////////////////////////////////////
 
-// wrapper function
-void send_udp_broadcast(){ WifiHelper::get()->send_udp_broadcast(DEVICE_ID); }
-
 WifiHelper* WifiHelper::s_instance = nullptr;
+
+// private constructor
+WifiHelper::WifiHelper(){}
 
 WifiHelper* WifiHelper::get()
 {
@@ -13,14 +13,9 @@ WifiHelper* WifiHelper::get()
     return s_instance;
 }
 
-WifiHelper::~WifiHelper()
+void WifiHelper::send_udp_broadcast(const char* the_string, uint16_t the_port)
 {
-    if(m_wifi_timer && m_owns_timer){ delete m_wifi_timer; }
-}
-
-void WifiHelper::send_udp_broadcast(const char* the_string)
-{
-    m_wifi_udp.beginPacket(m_broadcast_ip, m_broadcast_port);
+    m_wifi_udp.beginPacket(m_broadcast_ip, the_port);
     m_wifi_udp.write(the_string);
     m_wifi_udp.endPacket();
 }
@@ -31,21 +26,8 @@ WiFiClient** WifiHelper::connected_clients(uint32_t *num_clients)
     return m_wifi_clients_scratch;
 }
 
-bool WifiHelper::setup_wifi(kinski::Timer *timer)
+bool WifiHelper::setup_wifi(const char** the_known_networks, uint8_t the_num_networks)
 {
-    if(m_wifi_timer){ m_wifi_timer->cancel(); }
-
-    if(timer)
-    {
-        if(m_wifi_timer && m_owns_timer){ delete m_wifi_timer; m_owns_timer = false; }
-        m_wifi_timer = timer;
-    }
-    else
-    {
-        m_owns_timer = true;
-        m_wifi_timer = m_wifi_timer ? m_wifi_timer : new kinski::Timer();
-    }
-
     //Configure pins for Adafruit ATWINC1500 Feather
     WiFi.setPins(8, 7, 4, 2);
 
@@ -59,16 +41,16 @@ bool WifiHelper::setup_wifi(kinski::Timer *timer)
     // attempt to connect to WiFi network:
     if(m_wifi_status != WL_CONNECTED)
     {
-        for(uint32_t i = 0; i < g_num_known_networks; ++i)
+        for(uint32_t i = 0; i < the_num_networks; ++i)
         {
-            // Serial.print("Attempting to connect to SSID: ");
-            // Serial.println(g_wifi_known_networks[2 * i]);
+            Serial.print("Attempting to connect to SSID: ");
+            Serial.println(the_known_networks[2 * i]);
 
             // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-            m_wifi_status = WiFi.begin(g_wifi_known_networks[2 * i],
-                                       g_wifi_known_networks[2 * i + 1]);
+            m_wifi_status = WiFi.begin(the_known_networks[2 * i],
+                                       the_known_networks[2 * i + 1]);
 
-            // wait 10 seconds for connection:
+            // wait 3 seconds for connection:
             delay(3000);
 
             if(m_wifi_status == WL_CONNECTED){ break; }
@@ -80,14 +62,15 @@ bool WifiHelper::setup_wifi(kinski::Timer *timer)
          m_wifi_udp.begin(33334);
          m_local_ip = m_broadcast_ip = WiFi.localIP();
          ((char*) &m_broadcast_ip)[3] = 0xFF;
-
-         m_wifi_timer->expires_from_now(m_broadcast_interval);
-         m_wifi_timer->set_periodic();
-         m_wifi_timer->set_callback(&::send_udp_broadcast);
-
          return true;
     }
     return false;
+}
+
+void WifiHelper::set_tcp_listening_port(uint16_t the_port)
+{
+    m_tcp_server = WiFiServer(the_port);
+    m_tcp_server.begin();
 }
 
 void WifiHelper::update_connections()
@@ -99,8 +82,6 @@ void WifiHelper::update_connections()
 
         if(new_connection)
         {
-            // Serial.println("WifiHelper: new connection");
-
             bool has_empty_slot = false;
 
             for(uint8_t i = 0; i < m_max_num_wifi_clients; ++i)
@@ -111,12 +92,6 @@ void WifiHelper::update_connections()
                      has_empty_slot = true;
                      break;
                 }
-            }
-
-            if(!has_empty_slot)
-            {
-                // m_wifi_timer->cancel();
-                // Serial.println("WifiHelper: could not connect tcp-client: max num connections hit");
             }
         }
     }

@@ -6,8 +6,28 @@
 
 #ifdef USE_WIFI
 #include "WifiHelper.h"
+
+// network SSID
+static constexpr uint32_t g_num_known_networks = 2;
+static const char* g_wifi_known_networks[2 * g_num_known_networks] =
+{
+    "egligeil2.4", "#LoftFlower!",
+    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
+};
 WifiHelper* g_wifi_helper = WifiHelper::get();
-enum TimerEnum{TIMER_UDP_BROADCAST = 0};
+
+// UDP broadcast
+constexpr float g_udp_broadcast_interval = 2.f;
+uint16_t g_udp_broadcast_port = 55555;
+
+//TCP Server
+uint16_t g_tcp_listening_port = 33333;
+
+void send_udp_broadcast()
+{
+     WifiHelper::get()->send_udp_broadcast(DEVICE_ID, g_udp_broadcast_port);
+};
+
 #endif
 
 // update rate in Hz
@@ -24,7 +44,9 @@ uint32_t g_time_accum = 0;
 // update interval in millis
 const int g_update_interval = 1000 / UPDATE_RATE;
 
+// an array of Timer objects is provided
 constexpr uint32_t g_num_timers = 1;
+enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 kinski::Timer g_timer[g_num_timers];
 
 // helper for flashing PIN 13 (red onboard LED)
@@ -66,7 +88,13 @@ void setup()
     }
 
 #ifdef USE_WIFI
-    g_wifi_helper->setup_wifi(&g_timer[TIMER_UDP_BROADCAST]);
+    if(g_wifi_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
+    {
+        g_wifi_helper->set_tcp_listening_port(g_tcp_listening_port);
+        g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_udp_broadcast_interval);
+        g_timer[TIMER_UDP_BROADCAST].set_periodic();
+        g_timer[TIMER_UDP_BROADCAST].set_callback(&::send_udp_broadcast);
+    }
 #endif
 }
 

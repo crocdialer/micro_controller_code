@@ -1,6 +1,8 @@
 #include <Wire.h>
 #include "Adafruit_MPR121.h"
 #include "RunningMedian.h"
+
+#include "device_id.h"
 #include "utils.h"
 #include "Timer.hpp"
 
@@ -17,11 +19,7 @@ long g_last_time_stamp;
 
 constexpr uint32_t g_num_timers = 1;
 kinski::Timer g_timer[g_num_timers];
-
 enum TimerEnum{TIMER_UDP_BROADCAST = 0};
-
-#define CMD_QUERY_ID "ID"
-#define DEVICE_ID "CAPACITIVE_SENSOR"
 
 // bluetooth communication
 #ifdef USE_BLUETOOTH
@@ -36,92 +34,28 @@ enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 #endif
 
 #ifdef USE_WIFI
-#include <SPI.h>
-#include <WiFi101.h>
-#include <WiFiUdp.h>
+#include "WifiHelper.h"
 
-// // network SSID
-constexpr uint32_t g_num_known_networks = 2;
-const char* g_wifi_known_networks[2 * g_num_known_networks] =
+// network SSID
+static constexpr uint32_t g_num_known_networks = 2;
+static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
     "egligeil2.4", "#LoftFlower!",
-    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ"
+    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
 };
+WifiHelper* g_wifi_helper = WifiHelper::get();
 
-// network key index (WEP)
-int g_wifi_key_index = 0;
+// UDP broadcast
+constexpr float g_udp_broadcast_interval = 2.f;
+uint16_t g_udp_broadcast_port = 55555;
 
-int g_wifi_status = WL_IDLE_STATUS;
-
-// TCP server
-WiFiServer g_tcp_server(33333);
-
-// TCP connection
-WiFiClient g_wifi_client;
-
-// UDP util
-WiFiUDP g_wifi_udp;
-
-// local ip address
-uint32_t g_local_ip;
-
-// udp-broadcast
-uint32_t g_broadcast_ip;
-uint16_t g_broadcast_port = 55555;
-constexpr float g_broadcast_interval = 2.f;
+//TCP Server
+uint16_t g_tcp_listening_port = 33333;
 
 void send_udp_broadcast()
 {
-    g_wifi_udp.beginPacket(g_broadcast_ip, g_broadcast_port);
-    g_wifi_udp.write(DEVICE_ID);
-    g_wifi_udp.endPacket();
-}
-
-bool setup_wifi()
-{
-    //Configure pins for Adafruit ATWINC1500 Feather
-    WiFi.setPins(8, 7, 4, 2);
-
-    // check for the presence of the shield:
-    if(WiFi.status() == WL_NO_SHIELD)
-    {
-        Serial.println("WiFi shield not present");
-        return false;
-    }
-
-    // attempt to connect to WiFi network:
-    if(g_wifi_status != WL_CONNECTED)
-    {
-        for(uint32_t i = 0; i < g_num_known_networks; ++i)
-        {
-            Serial.print("Attempting to connect to SSID: ");
-            Serial.println(g_wifi_known_networks[2 * i]);
-
-            // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-            g_wifi_status = WiFi.begin(g_wifi_known_networks[2 * i],
-                                       g_wifi_known_networks[2 * i + 1]);
-
-            // wait 10 seconds for connection:
-            delay(10000);
-
-            if(g_wifi_status == WL_CONNECTED){ break; }
-        }
-    }
-    if(g_wifi_status == WL_CONNECTED)
-    {
-         g_tcp_server.begin();
-         g_wifi_udp.begin(33334);
-         g_local_ip = g_broadcast_ip = WiFi.localIP();
-         ((char*) &g_broadcast_ip)[3] = 0xFF;
-
-         g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_broadcast_interval);
-         g_timer[TIMER_UDP_BROADCAST].set_periodic();
-         g_timer[TIMER_UDP_BROADCAST].set_callback(&send_udp_broadcast);
-
-         return true;
-    }
-    return false;
-}
+     WifiHelper::get()->send_udp_broadcast(DEVICE_ID, g_udp_broadcast_port);
+};
 #endif
 
 bool g_bt_initialized = false;
@@ -159,10 +93,6 @@ bool has_uart()
             g_bt_serial.echo(false);
             return true;
         }
-    #endif
-    #ifdef USE_WIFI
-        if(g_wifi_status == WL_CONNECTED){ return true; }
-        else if(setup_wifi()){ return true; }
     #endif
     return Serial;
 }
@@ -202,8 +132,17 @@ void setup()
         g_proxy_medians[i] = RunningMedian(g_num_samples);
     }
     Serial.begin(115200);
-    while(!has_uart()){ blink_status_led(); }
+    // while(!has_uart()){ blink_status_led(); }
 
+#ifdef USE_WIFI
+    if(g_wifi_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
+    {
+        g_wifi_helper->set_tcp_listening_port(g_tcp_listening_port);
+        g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_udp_broadcast_interval);
+        g_timer[TIMER_UDP_BROADCAST].set_periodic();
+        g_timer[TIMER_UDP_BROADCAST].set_callback(&::send_udp_broadcast);
+    }
+#endif
     digitalWrite(13, LOW);
 }
 
@@ -282,19 +221,13 @@ void loop()
 // #endif
 
 #ifdef USE_WIFI
-        auto new_connection = g_tcp_server.available();
+        g_wifi_helper->update_connections();
+        uint32_t num_connections = 0;
+        auto wifi_clients = g_wifi_helper->connected_clients(&num_connections);
 
-        if(new_connection)
+        for(uint8_t i = 0; i < num_connections; ++i)
         {
-            g_timer[TIMER_UDP_BROADCAST].cancel();
-            g_wifi_client = new_connection;
-        }
-
-        if(g_wifi_client.connected()){ g_wifi_client.write(g_serial_buf); }
-        else if(g_wifi_client)
-        {
-            g_wifi_client = WiFiClient();
-            g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_broadcast_interval);
+            wifi_clients[i]->write(g_serial_buf);
         }
 #endif
 
@@ -306,7 +239,13 @@ void loop()
             process_input(g_bt_serial);
         #endif
         #ifdef USE_WIFI
-            process_input(g_wifi_client);
+            uint32_t num_connections = 0;
+            auto wifi_clients = g_wifi_helper->connected_clients(&num_connections);
+
+            for(uint8_t i = 0; i < num_connections; ++i)
+            {
+                process_input(*wifi_clients[i]);
+            }
         #endif
         g_time_accum_params = 0;
     }
