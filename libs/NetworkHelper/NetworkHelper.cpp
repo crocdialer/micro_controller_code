@@ -31,12 +31,12 @@ NetworkHelper* NetworkHelper::get()
 
 void NetworkHelper::send_udp_broadcast(const char* the_string, uint16_t the_port)
 {
-    // if(m_has_ethernet)
-    // {
-    //     m_ethernet_udp.beginPacket(m_broadcast_ip, the_port);
-    //     m_ethernet_udp.write(the_string);
-    //     m_ethernet_udp.endPacket();
-    // }
+    if(m_has_ethernet)
+    {
+        m_ethernet_udp.beginPacket(m_broadcast_ip, the_port);
+        m_ethernet_udp.write(the_string);
+        m_ethernet_udp.endPacket();
+    }
 
     if(m_wifi_status == WL_CONNECTED)
     {
@@ -63,18 +63,18 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
         }
     }
 
-    // if(m_has_ethernet)
-    // {
-    //     for(int i = 0; i < m_max_num_clients; ++i)
-    //     {
-    //         Client* client = m_ethernet_clients + i;
-    //
-    //         if(client && client->connected())
-    //         {
-    //             m_clients_scratch[num_clients++] = client;
-    //         }
-    //     }
-    // }
+    if(m_has_ethernet)
+    {
+        for(int i = 0; i < m_max_num_clients; ++i)
+        {
+            Client* client = m_ethernet_clients + i;
+
+            if(client && client->connected())
+            {
+                m_clients_scratch[num_clients++] = client;
+            }
+        }
+    }
     if(the_num_clients){ *the_num_clients = num_clients; }
     return m_clients_scratch;
 }
@@ -150,11 +150,11 @@ void NetworkHelper::set_tcp_listening_port(uint16_t the_port)
         m_tcp_server = WiFiServer(the_port);
         m_tcp_server.begin();
     }
-    // else if(m_has_ethernet)
-    // {
-    //     m_ethernet_tcp = EthernetServer(the_port);
-    //     m_ethernet_tcp.begin();
-    // }
+    else if(m_has_ethernet)
+    {
+        m_ethernet_tcp = EthernetServer(the_port);
+        m_ethernet_tcp.begin();
+    }
 }
 
 void NetworkHelper::update_connections()
@@ -179,45 +179,45 @@ void NetworkHelper::update_connections()
         }
     }
 
-    // if(m_has_ethernet)
-    // {
-    //     // Ethernet
-    //     EthernetClient connection = m_ethernet_tcp.available();
-    //
-    //     if(connection)
-    //     {
-    //         bool is_new_connection = true;
-    //
-    //         for(int i = 0; i < m_max_num_clients; ++i)
-    //         {
-    //             if(m_ethernet_clients[i] == connection)
-    //             {
-    //                 is_new_connection = false;
-    //                 break;
-    //             }
-    //         }
-    //
-    //         // find a slot for the new connection
-    //         if(is_new_connection)
-    //         {
-    //             for(int i = 0; i < m_max_num_clients; ++i)
-    //             {
-    //                 if(!m_ethernet_clients[i] && m_ethernet_clients[i] != connection)
-    //                 {
-    //                     connection.flush();
-    //                     m_ethernet_clients[i] = connection;
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //
-    //         // reset dead connections
-    //         // for(int i = 0; i < m_max_num_clients; ++i)
-    //         // {
-    //         //     if(!m_ethernet_clients[i].connected()){ m_ethernet_clients[i].stop(); }
-    //         // }
-    //     }
-    // }
+    if(m_has_ethernet)
+    {
+        // Ethernet
+        EthernetClient connection = m_ethernet_tcp.available();
+
+        if(connection)
+        {
+            bool is_new_connection = true;
+
+            for(int i = 0; i < m_max_num_clients; ++i)
+            {
+                if(m_ethernet_clients[i] == connection)
+                {
+                    is_new_connection = false;
+                    break;
+                }
+            }
+
+            // find a slot for the new connection
+            if(is_new_connection)
+            {
+                for(int i = 0; i < m_max_num_clients; ++i)
+                {
+                    if(!m_ethernet_clients[i] && m_ethernet_clients[i] != connection)
+                    {
+                        connection.flush();
+                        m_ethernet_clients[i] = connection;
+                        break;
+                    }
+                }
+            }
+
+            // reset dead connections
+            for(int i = 0; i < m_max_num_clients; ++i)
+            {
+                if(!m_ethernet_clients[i].connected()){ m_ethernet_clients[i].stop(); }
+            }
+        }
+    }
 }
 
 WiFiServer& NetworkHelper::tcp_server()

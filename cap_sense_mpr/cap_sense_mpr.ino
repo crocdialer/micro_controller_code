@@ -186,7 +186,6 @@ void loop()
              process_input(*net_clients[i]);
              net_clients[i]->write((const uint8_t*)g_serial_buf, strlen(g_serial_buf));
         }
-        // g_net_helper->tcp_server().write(g_serial_buf);
 #endif
 
     }

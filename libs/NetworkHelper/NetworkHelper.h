@@ -1,9 +1,9 @@
 #ifndef __WIFI_HELPER__
 #define __WIFI_HELPER__
 
-// #include <EthernetServer.h>
-// #include <EthernetClient.h>
-// #include <EthernetUdp2.h>
+#include <EthernetServer.h>
+#include <EthernetClient.h>
+#include <EthernetUdp2.h>
 
 #include <WiFi101.h>
 #include <WiFiServer.h>
@@ -22,7 +22,7 @@ public:
     ~NetworkHelper();
 
     //!
-    // bool setup_ethernet(const uint8_t* the_mac_adress = nullptr);
+    bool setup_ethernet(const uint8_t* the_mac_adress = nullptr);
 
     //!
     bool setup_wifi(const char** the_known_networks, uint8_t the_num_networks);
@@ -71,9 +71,9 @@ private:
     uint32_t m_broadcast_ip;
 
     ////// Ethernet assets ///////////
-    // EthernetServer m_ethernet_tcp{33333};
-    // EthernetUDP m_ethernet_udp;
-    // EthernetClient m_ethernet_clients[m_max_num_clients];
+    EthernetServer m_ethernet_tcp{33333};
+    EthernetUDP m_ethernet_udp;
+    EthernetClient m_ethernet_clients[m_max_num_clients];
 
     // scratch space for refs to active TCP connections
     Client* m_clients_scratch[2 * m_max_num_clients];
