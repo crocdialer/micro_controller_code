@@ -107,7 +107,8 @@ void setup()
     // while(!has_uart()){ blink_status_led(); }
 
 #ifdef USE_NETWORK
-    if(g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
+    if( g_net_helper->setup_ethernet() ||
+        g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
     {
         g_net_helper->set_tcp_listening_port(g_tcp_listening_port);
         g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_udp_broadcast_interval);

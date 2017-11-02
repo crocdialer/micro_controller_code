@@ -1,6 +1,6 @@
 #include <SPI.h>
+#include <Ethernet2.h>
 #include <WiFi101.h>
-// #include <Ethernet2.h>
 #include "NetworkHelper.h"
 
 /////////////////////////////// NetworkHelper IMPL ///////////////////////////////////////////
@@ -37,8 +37,7 @@ void NetworkHelper::send_udp_broadcast(const char* the_string, uint16_t the_port
         m_ethernet_udp.write(the_string);
         m_ethernet_udp.endPacket();
     }
-
-    if(m_wifi_status == WL_CONNECTED)
+    else if(m_wifi_status == WL_CONNECTED)
     {
         m_wifi_udp.beginPacket(m_broadcast_ip, the_port);
         m_wifi_udp.write(the_string);
@@ -79,28 +78,28 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
     return m_clients_scratch;
 }
 
-// bool NetworkHelper::setup_ethernet(const uint8_t* the_mac_adress)
-// {
-//     if(!the_mac_adress){ the_mac_adress = s_default_mac; }
-//
-//     Serial.println("Attempting to connect to Ethernet ...");
-//     m_has_ethernet = Ethernet.begin((uint8_t*)the_mac_adress);
-//
-//     if(!m_has_ethernet)
-//     {
-//         Serial.println("Failed to configure Ethernet using DHCP");
-//         // // initialize the ethernet device not using DHCP:
-//         // Ethernet.begin(mac, ip, gateway, subnet);
-//         return false;
-//     }
-//     m_local_ip = m_broadcast_ip = Ethernet.localIP();
-//     ((char*) &m_broadcast_ip)[3] = 0xFF;
-//
-//     // start listening for clients
-//     m_ethernet_tcp.begin();
-//     m_ethernet_udp.begin(33334);
-//     return true;
-// }
+bool NetworkHelper::setup_ethernet(const uint8_t* the_mac_adress)
+{
+    if(!the_mac_adress){ the_mac_adress = s_default_mac; }
+
+    Serial.println("Attempting to connect to Ethernet ...");
+    m_has_ethernet = Ethernet.begin((uint8_t*)the_mac_adress);
+
+    if(!m_has_ethernet)
+    {
+        Serial.println("Failed to configure Ethernet using DHCP");
+        // // initialize the ethernet device not using DHCP:
+        // Ethernet.begin(mac, ip, gateway, subnet);
+        return false;
+    }
+    m_local_ip = m_broadcast_ip = Ethernet.localIP();
+    ((char*) &m_broadcast_ip)[3] = 0xFF;
+
+    // start listening for clients
+    m_ethernet_tcp.begin();
+    m_ethernet_udp.begin(33334);
+    return true;
+}
 
 bool NetworkHelper::setup_wifi(const char** the_known_networks, uint8_t the_num_networks)
 {
@@ -218,14 +217,4 @@ void NetworkHelper::update_connections()
             }
         }
     }
-}
-
-WiFiServer& NetworkHelper::tcp_server()
-{
-    return m_tcp_server;
-}
-
-WiFiUDP& NetworkHelper::udp_server()
-{
-    return m_wifi_udp;
 }

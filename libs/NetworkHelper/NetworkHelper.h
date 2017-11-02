@@ -39,10 +39,6 @@ public:
     //!
     void set_tcp_listening_port(uint16_t the_port);
 
-    WiFiServer& tcp_server();
-
-    WiFiUDP& udp_server();
-
 private:
 
     static NetworkHelper* s_instance;
