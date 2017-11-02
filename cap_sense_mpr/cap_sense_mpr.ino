@@ -6,7 +6,7 @@
 #include "utils.h"
 #include "Timer.hpp"
 
-#define USE_WIFI
+#define USE_NETWORK
 
 const int g_update_interval = 33;
 char g_serial_buf[512];
@@ -20,8 +20,8 @@ constexpr uint32_t g_num_timers = 1;
 kinski::Timer g_timer[g_num_timers];
 enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 
-#ifdef USE_WIFI
-#include "WifiHelper.h"
+#ifdef USE_NETWORK
+#include "NetworkHelper.h"
 
 // network SSID
 static constexpr uint32_t g_num_known_networks = 2;
@@ -30,7 +30,7 @@ static const char* g_wifi_known_networks[2 * g_num_known_networks] =
     "egligeil2.4", "#LoftFlower!",
     "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
 };
-WifiHelper* g_wifi_helper = WifiHelper::get();
+NetworkHelper* g_net_helper = NetworkHelper::get();
 
 // UDP broadcast
 constexpr float g_udp_broadcast_interval = 2.f;
@@ -41,7 +41,7 @@ uint16_t g_tcp_listening_port = 33333;
 
 void send_udp_broadcast()
 {
-     WifiHelper::get()->send_udp_broadcast(DEVICE_ID, g_udp_broadcast_port);
+     NetworkHelper::get()->send_udp_broadcast(DEVICE_ID, g_udp_broadcast_port);
 };
 #endif
 
@@ -106,10 +106,10 @@ void setup()
     Serial.begin(115200);
     // while(!has_uart()){ blink_status_led(); }
 
-#ifdef USE_WIFI
-    if(g_wifi_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
+#ifdef USE_NETWORK
+    if(g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
     {
-        g_wifi_helper->set_tcp_listening_port(g_tcp_listening_port);
+        g_net_helper->set_tcp_listening_port(g_tcp_listening_port);
         g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_udp_broadcast_interval);
         g_timer[TIMER_UDP_BROADCAST].set_periodic();
         g_timer[TIMER_UDP_BROADCAST].set_callback(&::send_udp_broadcast);
@@ -175,18 +175,18 @@ void loop()
         process_input(Serial);
         Serial.write(g_serial_buf);
 
-#ifdef USE_WIFI
+#ifdef USE_NETWORK
         // IO -> TCP
-        g_wifi_helper->update_connections();
+        g_net_helper->update_connections();
         uint32_t num_connections = 0;
-        auto wifi_clients = g_wifi_helper->connected_clients(&num_connections);
+        auto net_clients = g_net_helper->connected_clients(&num_connections);
 
         for(uint32_t i = 0; i < num_connections; ++i)
         {
-             process_input(*wifi_clients[i]);
-             wifi_clients[i]->write(g_serial_buf);
+             process_input(*net_clients[i]);
+             net_clients[i]->write((const uint8_t*)g_serial_buf, strlen(g_serial_buf));
         }
-        g_wifi_helper->tcp_server().write(g_serial_buf);
+        // g_net_helper->tcp_server().write(g_serial_buf);
 #endif
 
     }
