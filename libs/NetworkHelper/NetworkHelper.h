@@ -1,14 +1,18 @@
 #ifndef __WIFI_HELPER__
 #define __WIFI_HELPER__
 
+#ifndef NO_ETHERNET
 #include <EthernetServer.h>
 #include <EthernetClient.h>
 #include <EthernetUdp2.h>
+#endif
 
+#ifndef NO_WIFI
 #include <WiFi101.h>
 #include <WiFiServer.h>
 #include <WiFiClient.h>
 #include <WiFiUdp.h>
+#endif
 
 class NetworkHelper
 {
@@ -30,7 +34,17 @@ public:
     //!
     Client** connected_clients(uint32_t *num_clients = nullptr);
 
-    //!
+    //! send data to all connected connected clients
+    size_t write(const uint8_t* the_data, size_t the_num_bytes);
+
+    //! send a null-terminated c-string to all connected clients
+    inline size_t write(const char* the_string)
+    {
+        return write((const uint8_t*)the_string, strlen(the_string));
+    }
+
+    //! update connections for all interfaces
+    //  needs to be called periodically
     void update_connections();
 
     //!
@@ -51,6 +65,13 @@ private:
 
     int m_wifi_status;
 
+    // local ip address
+    uint32_t m_local_ip;
+
+    // udp-broadcast
+    uint32_t m_broadcast_ip;
+
+#ifndef NO_WIFI
     // TCP server
     WiFiServer m_tcp_server{33333};
 
@@ -59,18 +80,14 @@ private:
 
     // UDP util
     WiFiUDP m_wifi_udp;
+#endif
 
-    // local ip address
-    uint32_t m_local_ip;
-
-    // udp-broadcast
-    uint32_t m_broadcast_ip;
-
+#ifndef NO_ETHERNET
     ////// Ethernet assets ///////////
     EthernetServer m_ethernet_tcp{33333};
     EthernetUDP m_ethernet_udp;
     EthernetClient m_ethernet_clients[m_max_num_clients];
-
+#endif
     // scratch space for refs to active TCP connections
     Client* m_clients_scratch[2 * m_max_num_clients];
 

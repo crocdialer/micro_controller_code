@@ -72,7 +72,7 @@ inline float smoothstep(float edge0, float edge1, float x)
     return t * t * (3.0 - 2.0 * t);
 }
 
-static const uint8_t r_offset = 1, g_offset = 0, b_offset = 2, w_offset = 3;
+constexpr uint8_t r_offset = 1, g_offset = 0, b_offset = 2, w_offset = 3;
 
 static inline uint32_t fade_color(uint32_t the_color, float the_fade_value)
 {

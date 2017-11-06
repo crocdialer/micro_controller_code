@@ -23,7 +23,10 @@ enum TimerEnum{TIMER_UDP_BROADCAST = 0};
 #ifdef USE_NETWORK
 #include "NetworkHelper.h"
 
-// network SSID
+// Ethernet MAC adress
+uint8_t g_mac_adress[6] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x69};
+
+// wireless SSIDs to scan for
 static constexpr uint32_t g_num_known_networks = 2;
 static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
@@ -107,7 +110,7 @@ void setup()
     // while(!has_uart()){ blink_status_led(); }
 
 #ifdef USE_NETWORK
-    if( g_net_helper->setup_ethernet() ||
+    if( g_net_helper->setup_ethernet(g_mac_adress) ||
         g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
     {
         g_net_helper->set_tcp_listening_port(g_tcp_listening_port);
@@ -188,7 +191,6 @@ void loop()
              net_clients[i]->write((const uint8_t*)g_serial_buf, strlen(g_serial_buf));
         }
 #endif
-
     }
 }
 

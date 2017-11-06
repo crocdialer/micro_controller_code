@@ -3,7 +3,10 @@
 
 #include "utils.h"
 #include "ColorDefines.h"
-#include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel_ZeroDMA.h>
+
+// using LedType = Adafruit_NeoPixel_ZeroDMA;
+using LedType = Adafruit_NeoPixel;
 
 // #define CURRENT_LED_TYPE (NEO_RGB + NEO_KHZ800)
 // #define BYTES_PER_PIXEL 3
@@ -76,7 +79,7 @@ private:
     }
 
     uint8_t* m_data = nullptr;
-    Adafruit_NeoPixel* m_strip = nullptr;
+    LedType* m_strip = nullptr;
     uint32_t m_num_segments;
     Segment** m_segments = nullptr;
     float m_brightness = .4f;

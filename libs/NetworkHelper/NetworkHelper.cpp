@@ -1,7 +1,13 @@
 #include <SPI.h>
-#include <Ethernet2.h>
-#include <WiFi101.h>
 #include "NetworkHelper.h"
+
+#ifndef NO_WIFI
+#include <WiFi101.h>
+#endif
+
+#ifndef NO_ETHERNET
+#include <Ethernet2.h>
+#endif
 
 /////////////////////////////// NetworkHelper IMPL ///////////////////////////////////////////
 
@@ -12,15 +18,21 @@ NetworkHelper* NetworkHelper::s_instance = nullptr;
 NetworkHelper::NetworkHelper():
 m_wifi_status(WL_IDLE_STATUS)
 {
+#ifndef NO_WIFI
+    //Configure pins for Adafruit ATWINC1500 Feather
+    WiFi.setPins(8, 7, 4, 2);
     memset(m_wifi_clients, 0, sizeof(WiFiClient*) * m_max_num_clients);
+#endif
 }
 
 NetworkHelper::~NetworkHelper()
 {
+#ifndef NO_WIFI
     for(int i = 0; i < m_max_num_clients; ++i)
     {
         if(m_wifi_clients[i]){ delete m_wifi_clients[i]; }
     }
+#endif
 }
 
 NetworkHelper* NetworkHelper::get()
@@ -31,24 +43,45 @@ NetworkHelper* NetworkHelper::get()
 
 void NetworkHelper::send_udp_broadcast(const char* the_string, uint16_t the_port)
 {
+#ifndef NO_ETHERNET
     if(m_has_ethernet)
     {
         m_ethernet_udp.beginPacket(m_broadcast_ip, the_port);
         m_ethernet_udp.write(the_string);
         m_ethernet_udp.endPacket();
     }
-    else if(m_wifi_status == WL_CONNECTED)
+    else
+#endif
+
+#ifndef NO_WIFI
+    if(m_wifi_status == WL_CONNECTED)
     {
         m_wifi_udp.beginPacket(m_broadcast_ip, the_port);
         m_wifi_udp.write(the_string);
         m_wifi_udp.endPacket();
     }
+#endif
+}
+
+size_t NetworkHelper::write(const uint8_t* the_data, size_t the_num_bytes)
+{
+    uint32_t num_connections = 0;
+    auto net_clients = connected_clients(&num_connections);
+    size_t bytes_written = 0;
+
+    for(uint32_t i = 0; i < num_connections; ++i)
+    {
+         auto ret = net_clients[i]->write(the_data, the_num_bytes);
+         bytes_written = max(bytes_written, ret);
+    }
+    return bytes_written;
 }
 
 Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
 {
     uint8_t num_clients = 0;
 
+#ifndef NO_WIFI
     if(m_wifi_status == WL_CONNECTED)
     {
         for(uint8_t i = 0; i < m_max_num_clients; ++i)
@@ -61,7 +94,9 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
             }
         }
     }
+#endif
 
+#ifndef NO_ETHERNET
     if(m_has_ethernet)
     {
         for(int i = 0; i < m_max_num_clients; ++i)
@@ -74,12 +109,15 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
             }
         }
     }
+#endif
+
     if(the_num_clients){ *the_num_clients = num_clients; }
     return m_clients_scratch;
 }
 
 bool NetworkHelper::setup_ethernet(const uint8_t* the_mac_adress)
 {
+#ifndef NO_ETHERNET
     if(!the_mac_adress){ the_mac_adress = s_default_mac; }
 
     Serial.println("Attempting to connect to Ethernet ...");
@@ -99,13 +137,13 @@ bool NetworkHelper::setup_ethernet(const uint8_t* the_mac_adress)
     m_ethernet_tcp.begin();
     m_ethernet_udp.begin(33334);
     return true;
+#endif
+    return false;
 }
 
 bool NetworkHelper::setup_wifi(const char** the_known_networks, uint8_t the_num_networks)
 {
-    //Configure pins for Adafruit ATWINC1500 Feather
-    WiFi.setPins(8, 7, 4, 2);
-
+#ifndef NO_WIFI
     // check for the presence of the shield:
     if(WiFi.status() == WL_NO_SHIELD)
     {
@@ -139,25 +177,34 @@ bool NetworkHelper::setup_wifi(const char** the_known_networks, uint8_t the_num_
          ((char*) &m_broadcast_ip)[3] = 0xFF;
          return true;
     }
+#endif
     return false;
 }
 
 void NetworkHelper::set_tcp_listening_port(uint16_t the_port)
 {
+#ifndef NO_WIFI
     if(m_wifi_status == WL_CONNECTED)
     {
         m_tcp_server = WiFiServer(the_port);
         m_tcp_server.begin();
     }
-    else if(m_has_ethernet)
+    else
+#endif
     {
-        m_ethernet_tcp = EthernetServer(the_port);
-        m_ethernet_tcp.begin();
+#ifndef NO_ETHERNET
+        if(m_has_ethernet)
+        {
+            m_ethernet_tcp = EthernetServer(the_port);
+            m_ethernet_tcp.begin();
+        }
+#endif
     }
 }
 
 void NetworkHelper::update_connections()
 {
+#ifndef NO_WIFI
     if(m_wifi_status == WL_CONNECTED)
     {
         uint8_t status = 0xFF;
@@ -177,7 +224,9 @@ void NetworkHelper::update_connections()
             }
         }
     }
+#endif
 
+#ifndef NO_ETHERNET
     if(m_has_ethernet)
     {
         // Ethernet
@@ -217,4 +266,5 @@ void NetworkHelper::update_connections()
             }
         }
     }
+#endif
 }

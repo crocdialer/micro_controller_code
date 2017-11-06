@@ -18,7 +18,7 @@ m_num_segments(the_num_segments)
         m_segments[i] = new Segment(SEGMENT_LENGTH);
     }
 
-    m_strip = new Adafruit_NeoPixel(SEGMENT_LENGTH * the_num_segments, the_pin, CURRENT_LED_TYPE);
+    m_strip = new LedType(SEGMENT_LENGTH * the_num_segments, the_pin, CURRENT_LED_TYPE);
     m_strip->begin();
     m_strip->setBrightness(255 * m_brightness);
     m_strip->show(); // Initialize all pixels to 'off'
