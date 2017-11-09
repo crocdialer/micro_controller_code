@@ -7,6 +7,8 @@
 #include "Timer.hpp"
 
 #define USE_NETWORK
+#define NO_ETHERNET
+// #define NO_WIFI
 
 const int g_update_interval = 33;
 char g_serial_buf[512];

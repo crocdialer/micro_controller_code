@@ -21,18 +21,18 @@ m_wifi_status(WL_IDLE_STATUS)
 #ifndef NO_WIFI
     //Configure pins for Adafruit ATWINC1500 Feather
     WiFi.setPins(8, 7, 4, 2);
-    memset(m_wifi_clients, 0, sizeof(WiFiClient*) * m_max_num_clients);
+    // memset(m_wifi_clients, 0, sizeof(WiFiClient*) * m_max_num_clients);
 #endif
 }
 
 NetworkHelper::~NetworkHelper()
 {
-#ifndef NO_WIFI
-    for(int i = 0; i < m_max_num_clients; ++i)
-    {
-        if(m_wifi_clients[i]){ delete m_wifi_clients[i]; }
-    }
-#endif
+// #ifndef NO_WIFI
+//     for(int i = 0; i < m_max_num_clients; ++i)
+//     {
+//         if(m_wifi_clients[i]){ delete m_wifi_clients[i]; }
+//     }
+// #endif
 }
 
 NetworkHelper* NetworkHelper::get()
@@ -86,9 +86,9 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
     {
         for(uint8_t i = 0; i < m_max_num_clients; ++i)
         {
-            Client* client = WiFi._client[i];
+            Client* client = m_wifi_clients + i;
 
-            if(client && client->connected())
+            if(client->connected())
             {
                 m_clients_scratch[num_clients++] = client;
             }
@@ -103,7 +103,7 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
         {
             Client* client = m_ethernet_clients + i;
 
-            if(client && client->connected())
+            if(client->connected())
             {
                 m_clients_scratch[num_clients++] = client;
             }
@@ -208,20 +208,38 @@ void NetworkHelper::update_connections()
     if(m_wifi_status == WL_CONNECTED)
     {
         uint8_t status = 0xFF;
-        WiFiClient* new_connection = m_tcp_server.available(&status);
+        WiFiClient connection = m_tcp_server.available(&status);
 
-        // newly created connection
-        if(new_connection && !status)
+        if(connection)
         {
+            bool is_new_connection = true;
+
             for(int i = 0; i < m_max_num_clients; ++i)
             {
-                if(!m_wifi_clients[i] || !*m_wifi_clients[i] || !m_wifi_clients[i]->connected())
+                if(m_wifi_clients[i] == connection)
                 {
-                    if(m_wifi_clients[i]){ delete m_wifi_clients[i]; }
-                    m_wifi_clients[i] = new_connection;
+                    is_new_connection = false;
                     break;
                 }
             }
+
+            // newly created connection
+            if(is_new_connection)
+            {
+                for(int i = 0; i < m_max_num_clients; ++i)
+                {
+                    if(!m_wifi_clients[i] || !m_wifi_clients[i].connected())
+                    {
+                        m_wifi_clients[i] = connection;
+                        break;
+                    }
+                }
+            }
+        }
+        // reset dead connections
+        for(int i = 0; i < m_max_num_clients; ++i)
+        {
+            if(m_wifi_clients[i] && !m_wifi_clients[i].connected()){ m_wifi_clients[i] = WiFiClient(); }
         }
     }
 #endif
@@ -250,7 +268,7 @@ void NetworkHelper::update_connections()
             {
                 for(int i = 0; i < m_max_num_clients; ++i)
                 {
-                    if(!m_ethernet_clients[i] && m_ethernet_clients[i] != connection)
+                    if(!m_ethernet_clients[i] || !m_ethernet_clients[i].connected())
                     {
                         connection.flush();
                         m_ethernet_clients[i] = connection;
@@ -258,11 +276,13 @@ void NetworkHelper::update_connections()
                     }
                 }
             }
-
-            // reset dead connections
-            for(int i = 0; i < m_max_num_clients; ++i)
+        }
+        // reset dead connections
+        for(int i = 0; i < m_max_num_clients; ++i)
+        {
+            if(m_ethernet_clients[i] && !m_ethernet_clients[i].connected())
             {
-                if(!m_ethernet_clients[i].connected()){ m_ethernet_clients[i].stop(); }
+                 m_ethernet_clients[i].stop();
             }
         }
     }

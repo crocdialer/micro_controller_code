@@ -76,7 +76,7 @@ private:
     WiFiServer m_tcp_server{33333};
 
     // client objects
-    WiFiClient* m_wifi_clients[m_max_num_clients];
+    WiFiClient m_wifi_clients[m_max_num_clients];
 
     // UDP util
     WiFiUDP m_wifi_udp;
