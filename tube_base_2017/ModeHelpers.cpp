@@ -28,7 +28,7 @@ void Mode_ONE_COLOR::process(uint32_t the_delta_time)
                                              0, g_num_colors - 1);
         m_next_color = g_colors[col_index];
 
-        Serial.println((int)(col_index));
+        // Serial.println((int)(col_index));
         m_trigger_time = random<uint32_t>(m_trigger_time_min, m_trigger_time_max);
         m_time_accum = 0;
     }

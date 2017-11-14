@@ -122,8 +122,8 @@ void loop()
 #ifdef USE_NETWORK
         g_net_helper->update_connections();
         uint32_t num_connections = 0;
-        auto wifi_clients = g_net_helper->connected_clients(&num_connections);
-        for(uint8_t i = 0; i < num_connections; ++i){ process_input(*wifi_clients[i]); }
+        auto net_clients = g_net_helper->connected_clients(&num_connections);
+        for(uint8_t i = 0; i < num_connections; ++i){ process_input(*net_clients[i]); }
 #endif
 
         // do nothing here while debugging
@@ -142,48 +142,93 @@ void loop()
 
 template <typename T> void process_input(T& the_device)
 {
+    g_buf_index = 0;
+
     while(the_device.available())
     {
         // get the new byte:
         uint8_t c = the_device.read();
-        if(c == '\0'){ continue; }
 
-        // add it to the buf
-        g_serial_buf[g_buf_index % SERIAL_BUFSIZE] = c;
-        g_buf_index = (g_buf_index + 1) % SERIAL_BUFSIZE;
-
-        // if the incoming character is a newline, set a flag
-        if (c == '\n')
+        switch(c)
         {
-            int index = atoi((const char*)g_serial_buf);
-            g_buf_index = 0;
-            memset(g_serial_buf, 0, SERIAL_BUFSIZE);
+            case '\r':
+            case '\0':
+                continue;
 
-            Serial.println(index);
+            case '\n':
+                g_serial_buf[g_buf_index] = '\0';
+                g_buf_index = 0;
+                parse_line(the_device, g_serial_buf);
+                break;
 
-            if(index >= 0 && index < g_path[0]->num_segments())
-            // if(index >= 0 && index < g_num_paths)
+            default:
+                // add it to the buf
+                g_serial_buf[g_buf_index] = c;
+                g_buf_index = (g_buf_index + 1) % SERIAL_BUFSIZE;
+                break;
+        }
+    }
+}
+
+template <typename T> void parse_line(T& the_device, char *the_line)
+{
+    constexpr size_t elem_count = 2;
+    const char* tokens[2];
+    memset(tokens, 0, sizeof(tokens));
+
+    tokens[0] = strtok(the_line, ":");
+    int arg = 0;
+    uint16_t i = 1;
+
+    // tokenize additional arguments
+    for(; tokens[i - 1] && (i < elem_count); i++)
+    {
+         tokens[i] = strtok(nullptr, " ");
+         if(tokens[i]){ arg = atoi(tokens[i]); }
+    }
+
+    if(strcmp(tokens[0], CMD_QUERY_ID) == 0)
+    {
+        char buf[32];
+        sprintf(buf, "%s %s\n", CMD_QUERY_ID, DEVICE_ID);
+        the_device.write((const uint8_t*)buf, strlen(buf));
+    }
+    else if(strcmp(tokens[0], CMD_RECV_DATA) == 0)
+    {
+        Serial.print("about to receive: ");
+        Serial.print(arg);
+        Serial.println(" bytes");
+
+        if(arg > 0)
+        {
+            size_t bytes_read = 0;
+
+            while(bytes_read < arg)
             {
-                g_run_mode = MODE_DEBUG;
-
-                for(uint32_t i = 0; i < g_path[0]->num_segments(); ++i)
-                {
-                    g_path[0]->segment(i)->set_active(index == i);
-                }
-                g_path[0]->segment(index)->set_color(ORANGE);
-                g_path[0]->update(0);
-
-                // for(uint8_t i = 0; i < g_num_paths; ++i)
-                // {
-                //     g_path[i]->set_all_segments(index == i ? ORANGE : BLACK);
-                //     g_path[i]->update(g_time_accum);
-                // }
+                bytes_read += the_device.readBytes((char*)g_path[0]->data() + bytes_read,
+                                                   arg - bytes_read);
             }
-            else
+            g_path[0]->strip()->show();
+            delay(3000);
+        }
+    }
+    else if(strcmp(tokens[0], CMD_SEGMENT) == 0)
+    {
+        if(arg >= 0 && arg < g_path[0]->num_segments())
+        {
+            g_run_mode = MODE_DEBUG;
+
+            for(uint32_t i = 0; i < g_path[0]->num_segments(); ++i)
             {
-                g_run_mode = MODE_RUNNING;
-                for(uint8_t i = 0; i < g_num_paths; ++i){ g_mode_helper[i]->reset(); }
+                g_path[0]->segment(i)->set_active(arg == i);
             }
+            g_path[0]->segment(arg)->set_color(ORANGE);
+            g_path[0]->update(0);
+        }
+        else
+        {
+            g_run_mode = MODE_RUNNING;
+            for(uint8_t i = 0; i < g_num_paths; ++i){ g_mode_helper[i]->reset(); }
         }
     }
 }

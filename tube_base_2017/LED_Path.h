@@ -5,8 +5,8 @@
 #include "ColorDefines.h"
 #include <Adafruit_NeoPixel_ZeroDMA.h>
 
-using LedType = Adafruit_NeoPixel_ZeroDMA;
-// using LedType = Adafruit_NeoPixel;
+// using LedType = Adafruit_NeoPixel_ZeroDMA;
+using LedType = Adafruit_NeoPixel;
 
 // #define CURRENT_LED_TYPE (NEO_RGB + NEO_KHZ800)
 // #define BYTES_PER_PIXEL 3
@@ -50,7 +50,8 @@ public:
     void clear();
     void update(uint32_t the_delta_time);
 
-    inline const uint8_t* data() const { return m_data; };
+    inline uint8_t* data() { return m_data; };
+    inline LedType* strip() { return m_strip; }
 
     void set_current_max(uint32_t the_max){ m_current_max = the_max; }
     void set_flash_speed(float the_speed){ m_flash_speed = the_speed; }
