@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace kinski
 {

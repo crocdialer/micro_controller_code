@@ -20,8 +20,12 @@ m_num_segments(the_num_segments)
 
     m_strip = new LedType(SEGMENT_LENGTH * the_num_segments, the_pin, CURRENT_LED_TYPE);
     m_strip->begin();
-    m_strip->setBrightness(255 * m_brightness);
-    m_strip->show(); // Initialize all pixels to 'off'
+
+    // we're scaling the brightness ourselves
+    m_strip->setBrightness(255);
+
+    // initialize all pixels to 0
+    m_strip->show();
 
     m_data = (uint8_t*)m_strip->getPixels();
 
@@ -82,7 +86,7 @@ finished:
 void LED_Path::set_brightness(float the_brightness)
 {
      m_brightness = the_brightness;
-     m_strip->setBrightness(255 * m_brightness);
+     // m_strip->setBrightness(255 * m_brightness);
 }
 
 void LED_Path::set_all_segments(uint32_t the_color)

@@ -1,5 +1,6 @@
 #ifndef __WIFI_HELPER__
 #define __WIFI_HELPER__
+#define NO_ETHERNET
 
 #ifndef NO_ETHERNET
 #include <EthernetServer.h>
@@ -22,8 +23,6 @@ public:
 
     //! singleton
     static NetworkHelper* get();
-
-    ~NetworkHelper();
 
     //!
     bool setup_ethernet(const uint8_t* the_mac_adress = nullptr);
@@ -56,7 +55,7 @@ public:
 private:
 
     static NetworkHelper* s_instance;
-    static constexpr uint8_t m_max_num_clients = 7;
+    static constexpr uint8_t s_max_num_clients = 7;
 
     NetworkHelper();
 
@@ -76,7 +75,7 @@ private:
     WiFiServer m_tcp_server{33333};
 
     // client objects
-    WiFiClient m_wifi_clients[m_max_num_clients];
+    WiFiClient m_wifi_clients[s_max_num_clients];
 
     // UDP util
     WiFiUDP m_wifi_udp;
@@ -86,10 +85,10 @@ private:
     ////// Ethernet assets ///////////
     EthernetServer m_ethernet_tcp{33333};
     EthernetUDP m_ethernet_udp;
-    EthernetClient m_ethernet_clients[m_max_num_clients];
+    EthernetClient m_ethernet_clients[s_max_num_clients];
 #endif
     // scratch space for refs to active TCP connections
-    Client* m_clients_scratch[2 * m_max_num_clients];
+    Client* m_clients_scratch[2 * s_max_num_clients];
 
     bool m_has_ethernet = false;
 };

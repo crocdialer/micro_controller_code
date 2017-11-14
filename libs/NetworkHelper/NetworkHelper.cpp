@@ -21,18 +21,7 @@ m_wifi_status(WL_IDLE_STATUS)
 #ifndef NO_WIFI
     //Configure pins for Adafruit ATWINC1500 Feather
     WiFi.setPins(8, 7, 4, 2);
-    // memset(m_wifi_clients, 0, sizeof(WiFiClient*) * m_max_num_clients);
 #endif
-}
-
-NetworkHelper::~NetworkHelper()
-{
-// #ifndef NO_WIFI
-//     for(int i = 0; i < m_max_num_clients; ++i)
-//     {
-//         if(m_wifi_clients[i]){ delete m_wifi_clients[i]; }
-//     }
-// #endif
 }
 
 NetworkHelper* NetworkHelper::get()
@@ -84,7 +73,7 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
 #ifndef NO_WIFI
     if(m_wifi_status == WL_CONNECTED)
     {
-        for(uint8_t i = 0; i < m_max_num_clients; ++i)
+        for(uint8_t i = 0; i < s_max_num_clients; ++i)
         {
             Client* client = m_wifi_clients + i;
 
@@ -99,7 +88,7 @@ Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
 #ifndef NO_ETHERNET
     if(m_has_ethernet)
     {
-        for(int i = 0; i < m_max_num_clients; ++i)
+        for(int i = 0; i < s_max_num_clients; ++i)
         {
             Client* client = m_ethernet_clients + i;
 
@@ -212,11 +201,12 @@ void NetworkHelper::update_connections()
 
         if(connection)
         {
+            // bool is_new_connection = !status;
             bool is_new_connection = true;
 
-            for(int i = 0; i < m_max_num_clients; ++i)
+            for(int i = 0; i < s_max_num_clients; ++i)
             {
-                if(m_wifi_clients[i] == connection)
+                if(connection == m_wifi_clients[i])
                 {
                     is_new_connection = false;
                     break;
@@ -226,10 +216,12 @@ void NetworkHelper::update_connections()
             // newly created connection
             if(is_new_connection)
             {
-                for(int i = 0; i < m_max_num_clients; ++i)
+                for(int i = 0; i < s_max_num_clients; ++i)
                 {
                     if(!m_wifi_clients[i] || !m_wifi_clients[i].connected())
                     {
+                        // TODO: check if this actually works
+                        connection.flush();
                         m_wifi_clients[i] = connection;
                         break;
                     }
@@ -237,9 +229,9 @@ void NetworkHelper::update_connections()
             }
         }
         // reset dead connections
-        for(int i = 0; i < m_max_num_clients; ++i)
+        for(int i = 0; i < s_max_num_clients; ++i)
         {
-            if(m_wifi_clients[i] && !m_wifi_clients[i].connected()){ m_wifi_clients[i] = WiFiClient(); }
+            if(m_wifi_clients[i] && !m_wifi_clients[i].connected()){ m_wifi_clients[i].stop(); }
         }
     }
 #endif
@@ -254,7 +246,7 @@ void NetworkHelper::update_connections()
         {
             bool is_new_connection = true;
 
-            for(int i = 0; i < m_max_num_clients; ++i)
+            for(int i = 0; i < s_max_num_clients; ++i)
             {
                 if(m_ethernet_clients[i] == connection)
                 {
@@ -266,7 +258,7 @@ void NetworkHelper::update_connections()
             // find a slot for the new connection
             if(is_new_connection)
             {
-                for(int i = 0; i < m_max_num_clients; ++i)
+                for(int i = 0; i < s_max_num_clients; ++i)
                 {
                     if(!m_ethernet_clients[i] || !m_ethernet_clients[i].connected())
                     {
@@ -278,7 +270,7 @@ void NetworkHelper::update_connections()
             }
         }
         // reset dead connections
-        for(int i = 0; i < m_max_num_clients; ++i)
+        for(int i = 0; i < s_max_num_clients; ++i)
         {
             if(m_ethernet_clients[i] && !m_ethernet_clients[i].connected())
             {

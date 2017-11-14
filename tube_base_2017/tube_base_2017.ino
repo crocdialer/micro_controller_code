@@ -65,7 +65,7 @@ uint32_t g_run_mode = MODE_RUNNING;
 
 constexpr uint8_t g_num_paths = 1;
 constexpr uint8_t g_path_length = 5;
-const uint8_t g_led_pins[] = {5};
+const uint8_t g_led_pins[] = {11};
 
 LED_Path* g_path[g_num_paths];
 ModeHelper* g_mode_helper[g_num_paths];
