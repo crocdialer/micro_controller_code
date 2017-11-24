@@ -194,16 +194,13 @@ template <typename T> void parse_line(T& the_device, char *the_line)
         char buf[32];
         sprintf(buf, "%s %s\n", CMD_QUERY_ID, DEVICE_ID);
         the_device.write((const uint8_t*)buf, strlen(buf));
+        return;
     }
     else if(strcmp(cmd_token, CMD_RECV_DATA) == 0)
     {
         const char* arg_str = strtok(nullptr, " ");
         uint32_t num_bytes = 0;
         if(arg_str){ num_bytes = atoi(arg_str); }
-
-        // Serial.print("about to receive: ");
-        // Serial.print(arg);
-        // Serial.println(" bytes");
 
         if(num_bytes)
         {
@@ -220,6 +217,7 @@ template <typename T> void parse_line(T& the_device, char *the_line)
             // start a timer to return <g_run_mode> to normal
             g_timer[TIMER_RUNMODE].expires_from_now(2.f);
         }
+        return;
     }
     else if(strcmp(cmd_token, CMD_SEGMENT) == 0)
     {
@@ -252,5 +250,17 @@ template <typename T> void parse_line(T& the_device, char *the_line)
             }
         }
         g_path[0]->update(0);
+        return;
+    }
+    else if(strcmp(cmd_token, CMD_BRIGHTNESS) == 0)
+    {
+        const char* arg_str = strtok(nullptr, " ");
+        float val = g_path[0]->brightness();
+
+        if(arg_str)
+        {
+            val = clamp<float>(atof(arg_str), 0.f, 1.f);
+            g_path[0]->set_brightness(val);
+        }
     }
 }
