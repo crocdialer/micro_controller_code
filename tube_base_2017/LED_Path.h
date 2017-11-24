@@ -5,8 +5,8 @@
 #include "ColorDefines.h"
 #include <Adafruit_NeoPixel_ZeroDMA.h>
 
-// using LedType = Adafruit_NeoPixel_ZeroDMA;
-using LedType = Adafruit_NeoPixel;
+using LedType = Adafruit_NeoPixel_ZeroDMA;
+// using LedType = Adafruit_NeoPixel;
 
 // #define CURRENT_LED_TYPE (NEO_RGB + NEO_KHZ800)
 // #define BYTES_PER_PIXEL 3

@@ -160,6 +160,11 @@ bool NetworkHelper::setup_wifi(const char** the_known_networks, uint8_t the_num_
     }
     if(m_wifi_status == WL_CONNECTED)
     {
+        // print the received signal strength:
+        long rssi = WiFi.RSSI();
+        Serial.print("signal strength (RSSI): ");
+        Serial.println(rssi);
+
          m_tcp_server.begin();
          m_wifi_udp.begin(33334);
          m_local_ip = m_broadcast_ip = WiFi.localIP();

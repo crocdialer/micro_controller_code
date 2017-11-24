@@ -10,11 +10,12 @@
 #include "NetworkHelper.h"
 
 // network SSID
-static constexpr uint32_t g_num_known_networks = 2;
+static constexpr uint32_t g_num_known_networks = 3;
 static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
     "egligeil2.4", "#LoftFlower!",
     "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
+    "iWay_Fiber_jz748", "92588963378762374925"
 };
 NetworkHelper* g_net_helper = NetworkHelper::get();
 
@@ -47,8 +48,12 @@ uint32_t g_time_accum = 0;
 const int g_update_interval = 1000 / UPDATE_RATE;
 
 // an array of Timer objects is provided
-constexpr uint32_t g_num_timers = 1;
-enum TimerEnum{TIMER_UDP_BROADCAST = 0};
+constexpr uint32_t g_num_timers = 2;
+enum TimerEnum
+{
+    TIMER_UDP_BROADCAST = 0,
+    TIMER_RUNMODE = 1
+};
 kinski::Timer g_timer[g_num_timers];
 
 // helper for flashing PIN 13 (red onboard LED)
@@ -60,15 +65,19 @@ enum RunMode
 {
     MODE_DEBUG = 1 << 0,
     MODE_RUNNING = 1 << 1,
+    MODE_STREAMING = 1 << 2
 };
 uint32_t g_run_mode = MODE_RUNNING;
 
 constexpr uint8_t g_num_paths = 1;
-constexpr uint8_t g_path_length = 5;
+constexpr uint8_t g_path_length = 6;
 const uint8_t g_led_pins[] = {11};
 
 LED_Path* g_path[g_num_paths];
 ModeHelper* g_mode_helper[g_num_paths];
+
+//! timer callback to reset the runmode after streaming
+void set_running(){ g_run_mode = MODE_RUNNING; }
 
 void setup()
 {
@@ -98,6 +107,8 @@ void setup()
         g_timer[TIMER_UDP_BROADCAST].set_callback(&::send_udp_broadcast);
     }
 #endif
+
+    g_timer[TIMER_RUNMODE].set_callback(set_running);
 }
 
 void loop()
@@ -133,7 +144,8 @@ void loop()
              for(uint8_t i = 0; i < g_num_paths; ++i){ g_mode_helper[i]->process(g_time_accum); }
         }
 
-        for(uint8_t i = 0; i < g_num_paths; ++i){ g_path[i]->update(g_time_accum); }
+        if(!(g_run_mode & MODE_STREAMING))
+            for(uint8_t i = 0; i < g_num_paths; ++i){ g_path[i]->update(g_time_accum); }
 
         // clear time accumulator
         g_time_accum = 0;
@@ -195,9 +207,9 @@ template <typename T> void parse_line(T& the_device, char *the_line)
     }
     else if(strcmp(tokens[0], CMD_RECV_DATA) == 0)
     {
-        Serial.print("about to receive: ");
-        Serial.print(arg);
-        Serial.println(" bytes");
+        // Serial.print("about to receive: ");
+        // Serial.print(arg);
+        // Serial.println(" bytes");
 
         if(arg > 0)
         {
@@ -209,7 +221,10 @@ template <typename T> void parse_line(T& the_device, char *the_line)
                                                    arg - bytes_read);
             }
             g_path[0]->strip()->show();
-            delay(3000);
+            g_run_mode = MODE_STREAMING;
+
+            // start a timer to return <g_run_mode> to normal
+            g_timer[TIMER_RUNMODE].expires_from_now(2.f);
         }
     }
     else if(strcmp(tokens[0], CMD_SEGMENT) == 0)
