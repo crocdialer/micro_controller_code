@@ -192,7 +192,6 @@ void loop()
 
 #ifdef USE_NETWORK
         // IO -> TCP
-        g_net_helper->update_connections();
         uint32_t num_connections = 0;
         auto net_clients = g_net_helper->connected_clients(&num_connections);
 

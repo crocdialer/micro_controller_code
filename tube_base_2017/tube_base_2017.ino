@@ -85,8 +85,7 @@ void setup()
     for(uint8_t i = 0; i < g_num_paths; ++i)
     {
          g_path[i] = new LED_Path(g_led_pins[i], g_path_length);
-         g_path[i]->set_sinus_offsets(random<int>(0, 256), random<int>(0, 256));
-         g_mode_helper[i] = new Mode_ONE_COLOR(g_path[i]);//CompositeMode
+         g_mode_helper[i] = new CompositeMode(g_path[i]);//Mode_ONE_COLOR
     }
 
 #ifdef USE_NETWORK
@@ -120,7 +119,6 @@ void loop()
         process_input(Serial);
 
 #ifdef USE_NETWORK
-        g_net_helper->update_connections();
         uint32_t num_connections = 0;
         auto net_clients = g_net_helper->connected_clients(&num_connections);
         for(uint8_t i = 0; i < num_connections; ++i){ process_input(*net_clients[i]); }

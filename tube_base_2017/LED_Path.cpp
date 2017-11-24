@@ -1,8 +1,7 @@
 #include "LED_Path.h"
 
-FastSinus LED_Path::s_fast_sin;
-
-Segment::Segment(uint32_t the_length):
+Segment::Segment(uint8_t *the_data, uint32_t the_length):
+m_data(the_data),
 m_length(the_length)
 {
 
@@ -11,13 +10,6 @@ m_length(the_length)
 LED_Path::LED_Path(uint32_t the_pin, uint32_t the_num_segments):
 m_num_segments(the_num_segments)
 {
-    m_segments = new Segment*[the_num_segments];
-
-    for(uint32_t i = 0; i < the_num_segments; ++i)
-    {
-        m_segments[i] = new Segment(SEGMENT_LENGTH);
-    }
-
     m_strip = new LedType(SEGMENT_LENGTH * the_num_segments, the_pin, CURRENT_LED_TYPE);
     m_strip->begin();
 
@@ -28,8 +20,15 @@ m_num_segments(the_num_segments)
     m_strip->show();
 
     m_data = (uint8_t*)m_strip->getPixels();
-
     m_current_max = num_leds();
+
+    m_segments = new Segment*[the_num_segments];
+
+    for(uint32_t i = 0; i < the_num_segments; ++i)
+    {
+        m_segments[i] = new Segment(m_data + i * SEGMENT_LENGTH * BYTES_PER_PIXEL,
+                                    SEGMENT_LENGTH);
+    }
 }
 
 LED_Path::~LED_Path()
@@ -49,38 +48,8 @@ void LED_Path::clear()
 
 void LED_Path::update(uint32_t the_delta_time)
 {
-    clear();
-
-    for(uint32_t i = 0; i < m_num_segments; ++i)
-    {
-        if(!m_segments[i]->active()){ continue; }
-        uint32_t c = m_segments[i]->color();
-        swap(((uint8_t*) &c)[0], ((uint8_t*) &c)[1]);
-
-        uint8_t *ptr = m_data + i * SEGMENT_LENGTH * BYTES_PER_PIXEL;
-        uint8_t *end_ptr = ptr + SEGMENT_LENGTH * BYTES_PER_PIXEL;
-
-        for(;ptr < end_ptr; ptr += BYTES_PER_PIXEL)
-        {
-            uint32_t current_index = (ptr - m_data) / BYTES_PER_PIXEL;
-            if(current_index >= m_current_max){ goto finished; }
-
-            float sin_val = create_sinus_val(current_index);
-            uint32_t fade_col = fade_color(c, m_brightness * sin_val);
-            memcpy(ptr, &fade_col, BYTES_PER_PIXEL);
-        }
-    }
-
-finished:
-
+    // show!?
     m_strip->show();
-    m_current_max = min(num_leds(), m_current_max + m_flash_speed * the_delta_time / 1000.f);
-
-    // advance sinus offsets
-    for(uint32_t i = 0; i < 2; ++i)
-    {
-        m_sinus_offsets[i] += m_sinus_speeds[i] * the_delta_time / 1000.f;
-    }
 }
 
 void LED_Path::set_brightness(float the_brightness)

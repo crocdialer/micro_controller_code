@@ -20,13 +20,15 @@ using LedType = Adafruit_NeoPixel;
 class Segment
 {
 public:
-    Segment(uint32_t the_length);
+    Segment(uint8_t *the_data, uint32_t the_length);
     inline uint32_t length(){return m_length; }
     inline uint32_t color() const { return m_color; }
     inline void set_color(uint32_t the_color){ m_color = the_color; }
     inline void set_active(bool b){ m_active = b; }
     inline bool active() const{ return m_active; }
+    inline uint8_t* data() { return m_data; };
 private:
+    uint8_t* m_data = nullptr;
     uint32_t m_length;
     uint32_t m_color = AQUA;
     bool m_active = true;
@@ -53,31 +55,10 @@ public:
     inline uint8_t* data() { return m_data; };
     inline LedType* strip() { return m_strip; }
 
-    void set_current_max(uint32_t the_max){ m_current_max = the_max; }
-    void set_flash_speed(float the_speed){ m_flash_speed = the_speed; }
-    void set_flash_direction(bool b){ m_flash_forward = b; }
-    void set_sinus_offsets(float a, float b){ m_sinus_offsets[0] = a; m_sinus_offsets[1] = b;}
+    inline uint32_t current_max(){ return m_current_max; }
+    inline void set_current_max(uint32_t the_max){ m_current_max = the_max; }
 
 private:
-
-    float m_sinus_factors[2] = {PI_2, PI * 7.3132f};
-    float m_sinus_speeds[2] = {-15, -2};
-    float m_sinus_offsets[2] = {0, 211};
-
-    static FastSinus s_fast_sin;
-
-    inline float create_sinus_val(uint32_t the_index)
-    {
-        float ret = 0.f;
-        constexpr uint32_t num_sinus = 2;
-
-        for(uint32_t i = 0; i < num_sinus; ++i)
-        {
-            float val = m_sinus_factors[i] * (the_index + m_sinus_offsets[i]) / (TUBE_LENGTH /*/ 5.f*/);
-            ret += s_fast_sin(val);
-        }
-        return clamp((ret / num_sinus + 1.f) / 2.f, 0.05f, 1.f);
-    }
 
     uint8_t* m_data = nullptr;
     LedType* m_strip = nullptr;
@@ -86,7 +67,5 @@ private:
     float m_brightness = .4f;
 
     float m_current_max;
-    float m_flash_speed = 800.f;
-    bool m_flash_forward = true;
 };
 #endif

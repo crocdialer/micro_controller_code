@@ -68,6 +68,7 @@ size_t NetworkHelper::write(const uint8_t* the_data, size_t the_num_bytes)
 
 Client** NetworkHelper::connected_clients(uint32_t *the_num_clients)
 {
+    update_connections();
     uint8_t num_clients = 0;
 
 #ifndef NO_WIFI
