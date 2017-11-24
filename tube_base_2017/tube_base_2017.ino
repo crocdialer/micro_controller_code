@@ -74,7 +74,8 @@ constexpr uint8_t g_path_length = 6;
 const uint8_t g_led_pins[] = {11};
 
 LED_Path* g_path[g_num_paths];
-ModeHelper* g_mode_helper[g_num_paths];
+ModeHelper *g_mode_sinus = nullptr, *g_mode_colour = nullptr, *g_mode_current = nullptr;
+CompositeMode *g_mode_composite = nullptr;
 
 //! timer callback to reset the runmode after streaming
 void set_running(){ g_run_mode = MODE_RUNNING; }
@@ -94,8 +95,14 @@ void setup()
     for(uint8_t i = 0; i < g_num_paths; ++i)
     {
          g_path[i] = new LED_Path(g_led_pins[i], g_path_length);
-         g_mode_helper[i] = new CompositeMode(g_path[i]);//Mode_ONE_COLOR
     }
+
+    // create ModeHelper objects
+    g_mode_colour = new Mode_ONE_COLOR();
+    g_mode_sinus = new SinusFill();
+    g_mode_current = g_mode_composite = new CompositeMode();
+    g_mode_composite->add_mode(g_mode_colour);
+    g_mode_composite->add_mode(g_mode_sinus);
 
 #ifdef USE_NETWORK
     if(g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
@@ -135,16 +142,14 @@ void loop()
         for(uint8_t i = 0; i < num_connections; ++i){ process_input(*net_clients[i]); }
 #endif
 
-        // do nothing here while debugging
-        if(g_run_mode & MODE_DEBUG){ }
-        else if(g_run_mode & MODE_RUNNING)
-        {
-             for(uint8_t i = 0; i < g_num_paths; ++i){ g_mode_helper[i]->process(g_time_accum); }
-        }
-
         if(!(g_run_mode & MODE_STREAMING))
-            for(uint8_t i = 0; i < g_num_paths; ++i){ g_path[i]->update(g_time_accum); }
-
+        {
+            for(uint8_t i = 0; i < g_num_paths; ++i)
+            {
+                 g_path[i]->update(g_time_accum);
+                 g_mode_current->process(g_path[i], g_time_accum);
+            }
+        }
         // clear time accumulator
         g_time_accum = 0;
     }
@@ -182,41 +187,32 @@ template <typename T> void process_input(T& the_device)
 
 template <typename T> void parse_line(T& the_device, char *the_line)
 {
-    constexpr size_t elem_count = 2;
-    const char* tokens[2];
-    memset(tokens, 0, sizeof(tokens));
+    const char* cmd_token = strtok(the_line, ":");
 
-    tokens[0] = strtok(the_line, ":");
-    int arg = 0;
-    uint16_t i = 1;
-
-    // tokenize additional arguments
-    for(; tokens[i - 1] && (i < elem_count); i++)
-    {
-         tokens[i] = strtok(nullptr, " ");
-         if(tokens[i]){ arg = atoi(tokens[i]); }
-    }
-
-    if(strcmp(tokens[0], CMD_QUERY_ID) == 0)
+    if(strcmp(cmd_token, CMD_QUERY_ID) == 0)
     {
         char buf[32];
         sprintf(buf, "%s %s\n", CMD_QUERY_ID, DEVICE_ID);
         the_device.write((const uint8_t*)buf, strlen(buf));
     }
-    else if(strcmp(tokens[0], CMD_RECV_DATA) == 0)
+    else if(strcmp(cmd_token, CMD_RECV_DATA) == 0)
     {
+        const char* arg_str = strtok(nullptr, " ");
+        uint32_t num_bytes = 0;
+        if(arg_str){ num_bytes = atoi(arg_str); }
+
         // Serial.print("about to receive: ");
         // Serial.print(arg);
         // Serial.println(" bytes");
 
-        if(arg > 0)
+        if(num_bytes)
         {
             size_t bytes_read = 0;
 
-            while(bytes_read < arg)
+            while(bytes_read < num_bytes)
             {
                 bytes_read += the_device.readBytes((char*)g_path[0]->data() + bytes_read,
-                                                   arg - bytes_read);
+                                                   num_bytes - bytes_read);
             }
             g_path[0]->strip()->show();
             g_run_mode = MODE_STREAMING;
@@ -225,23 +221,36 @@ template <typename T> void parse_line(T& the_device, char *the_line)
             g_timer[TIMER_RUNMODE].expires_from_now(2.f);
         }
     }
-    else if(strcmp(tokens[0], CMD_SEGMENT) == 0)
+    else if(strcmp(cmd_token, CMD_SEGMENT) == 0)
     {
-        if(arg >= 0 && arg < g_path[0]->num_segments())
-        {
-            g_run_mode = MODE_DEBUG;
+        const char* arg_str = nullptr;
 
-            for(uint32_t i = 0; i < g_path[0]->num_segments(); ++i)
-            {
-                g_path[0]->segment(i)->set_active(arg == i);
-            }
-            g_path[0]->segment(arg)->set_color(ORANGE);
-            g_path[0]->update(0);
-        }
-        else
+        // disable all segments
+        for(uint32_t i = 0; i < g_path[0]->num_segments(); ++i)
         {
-            g_run_mode = MODE_RUNNING;
-            for(uint8_t i = 0; i < g_num_paths; ++i){ g_mode_helper[i]->reset(); }
+            g_path[0]->segment(i)->set_active(false);
         }
+
+        while((arg_str = strtok(nullptr, " ")))
+        {
+            int index = atoi(arg_str);
+
+            if(index >= 0 && index < g_path[0]->num_segments())
+            {
+                g_run_mode = MODE_DEBUG;
+                g_mode_current = g_mode_sinus;
+                Segment *s = g_path[0]->segment(index);
+                s->set_active(true);
+                s->set_color(ORANGE);
+            }
+            else
+            {
+                g_run_mode = MODE_RUNNING;
+                g_mode_current = g_mode_composite;
+                for(uint8_t i = 0; i < g_num_paths; ++i){ g_mode_current->reset(g_path[i]); }
+                break;
+            }
+        }
+        g_path[0]->update(0);
     }
 }

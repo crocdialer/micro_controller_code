@@ -10,17 +10,14 @@
 class ModeHelper
 {
 public:
-    ModeHelper(LED_Path* the_path);
-    virtual void process(uint32_t the_delta_time) = 0;
-    virtual void reset() = 0;
-
+    ModeHelper();
+    virtual void process(LED_Path* the_path, uint32_t the_delta_time) = 0;
+    virtual void reset(LED_Path* the_path) = 0;
     virtual void set_trigger_time(uint32_t the_min, uint32_t the_max);
-
-    inline LED_Path* path(){ return m_path; };
 
 protected:
 
-    LED_Path* m_path;
+    // LED_Path* m_path;
     uint32_t m_time_accum = 0;
     uint32_t m_trigger_time = 0;
     uint32_t m_trigger_time_min = 0, m_trigger_time_max = 0;
@@ -29,9 +26,9 @@ protected:
 class Mode_ONE_COLOR : public ModeHelper
 {
 public:
-    Mode_ONE_COLOR(LED_Path* the_path);
-    void process(uint32_t the_delta_time) override;
-    void reset() override;
+    Mode_ONE_COLOR();
+    void process(LED_Path* the_path, uint32_t the_delta_time) override;
+    void reset(LED_Path* the_path) override;
 
 private:
     uint32_t m_next_color = g_colors[0];
@@ -40,15 +37,15 @@ private:
 class ModeFlash : public ModeHelper
 {
 public:
-    ModeFlash(LED_Path* the_path);
-    void process(uint32_t the_delta_time) override;
-    void reset() override;
+    ModeFlash();
+    void process(LED_Path* the_path, uint32_t the_delta_time) override;
+    void reset(LED_Path* the_path) override;
 
     inline void set_flash_speed(float the_speed){ m_flash_speed = the_speed; }
     inline void set_flash_direction(bool b){ m_flash_forward = b; }
 
 private:
-    
+
     float m_flash_speed = 800.f;
     bool m_flash_forward = true;
 };
@@ -57,17 +54,17 @@ class Mode_Segments : public ModeHelper
 {
 public:
 
-    Mode_Segments(LED_Path* the_path);
-    void process(uint32_t the_delta_time) override;
-    void reset() override;
+    Mode_Segments();
+    void process(LED_Path* the_path, uint32_t the_delta_time) override;
+    void reset(LED_Path* the_path) override;
 };
 
 class SinusFill : public ModeHelper
 {
 public:
-    SinusFill(LED_Path* the_path);
-    void process(uint32_t the_delta_time) override;
-    void reset() override;
+    SinusFill();
+    void process(LED_Path* the_path, uint32_t the_delta_time) override;
+    void reset(LED_Path* the_path) override;
 
     void set_sinus_offsets(float a, float b){ m_sinus_offsets[0] = a; m_sinus_offsets[1] = b;}
 
@@ -95,13 +92,17 @@ private:
 class CompositeMode : public ModeHelper
 {
 public:
+    static constexpr size_t s_max_num_modes = 5;
 
-    CompositeMode(LED_Path* the_path);
-    void process(uint32_t the_delta_time) override;
-    void reset() override;
+    CompositeMode();
+    void process(LED_Path* the_path, uint32_t the_delta_time) override;
+    void reset(LED_Path* the_path) override;
+
+    void add_mode(ModeHelper *m);
+    void remove_mode(ModeHelper *m);
+    inline uint32_t num_modes() const { return m_num_modes; };
 
 private:
-    uint32_t m_num_mode_helpers = 2;
-    ModeHelper* m_mode_helpers[3] = {nullptr, nullptr, nullptr};
-    bool m_shorter_duration = false;
+    uint32_t m_num_modes = 0;
+    ModeHelper* m_mode_helpers[s_max_num_modes];
 };
