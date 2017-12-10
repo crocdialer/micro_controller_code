@@ -111,15 +111,6 @@ void setup()
     // while(!Serial){ blink_status_led(); }
     Serial.begin(115200);
 
-    // WiFiClient c, d;
-    // bool b = c;
-    // Serial.print("WiFiClient c  -> ");
-    // Serial.println(b);
-    //
-    // b = (c == d);
-    // Serial.print("WiFiClient c equal test (c == d) -> ");
-    // Serial.println(b);
-
 #ifdef USE_NETWORK
     if( g_net_helper->setup_ethernet(g_mac_adress) ||
         g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
