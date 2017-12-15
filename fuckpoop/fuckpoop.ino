@@ -1,21 +1,21 @@
+#include <ArduinoSound.h>
 #include "ModeHelpers.h"
 #include "Timer.hpp"
 #include "LED_Path.h"
 #include "ModeHelpers.h"
-#include <ArduinoSound.h>
 
 // create an amplitude analyzer to be used with the I2S input
 AmplitudeAnalyzer g_amplitude_analyzer;
 
 // update rate in Hz
-#define UPDATE_RATE 60
+#define UPDATE_RATE 30
 #define SERIAL_BUFSIZE 128
 
 char g_serial_buf[SERIAL_BUFSIZE];
 uint32_t g_buf_index = 0;
 
 // helper variables for time measurement
-long g_last_time_stamp = 0;
+long g_last_time_stamp = 0, g_last_mic_reading = 0;
 uint32_t g_time_accum = 0;
 
 // update interval in millis
@@ -43,7 +43,7 @@ uint32_t g_run_mode = MODE_RUNNING;
 
 constexpr uint8_t g_num_paths = 1;
 constexpr uint8_t g_path_length = 2;
-const uint8_t g_led_pins[] = {11};
+const uint8_t g_led_pins[] = {5};
 
 LED_Path* g_path[g_num_paths];
 
@@ -56,6 +56,14 @@ void blink_status_led()
     delay(500);
     digitalWrite(13, HIGH);
     delay(500);
+}
+
+bool init_audio()
+{
+    g_last_mic_reading = 0;
+    
+     // setup the I2S audio input for 44.1 kHz with 32-bits per sample
+    return AudioInI2S.begin(16000, 32) && g_amplitude_analyzer.input(AudioInI2S);
 }
 
 void setup()
@@ -82,9 +90,7 @@ void setup()
     g_mode_composite->add_mode(g_mode_colour);
     g_mode_composite->add_mode(g_mode_sinus);
 
-    // setup the I2S audio input for 44.1 kHz with 32-bits per sample
-    bool success = AudioInI2S.begin(44100, 32) && g_amplitude_analyzer.input(AudioInI2S);
-    while(!success){ blink_status_led(); }
+    while(!init_audio()){ blink_status_led(); }
 }
 
 void loop()
@@ -103,19 +109,28 @@ void loop()
     {
         // read the new amplitude
         amplitude = g_amplitude_analyzer.read();
+
+        g_indicator = !g_indicator;
+
+        // print out the amplititude to the serial monitor
+        if(amplitude){ Serial.println(amplitude); }
+
+        g_last_mic_reading = g_last_time_stamp;
+    }
+    else if(g_last_time_stamp - g_last_mic_reading > 100)
+    {
+        while(!init_audio()){ blink_status_led(); }
     }
 
     if(g_time_accum >= g_update_interval)
     {
-        // print out the amplititude to the serial monitor
-        if(amplitude){ Serial.println(amplitude); }
-
         // flash red indicator LED
         digitalWrite(13, g_indicator);
-        g_indicator = !g_indicator;
+        // g_indicator = !g_indicator;
 
         for(uint8_t i = 0; i < g_num_paths; ++i)
         {
+            // g_path[i]->set_current_max(i / 8.f);
             g_path[i]->update(g_time_accum);
             g_mode_current->process(g_path[i], g_time_accum);
         }
@@ -123,5 +138,6 @@ void loop()
         // clear time accumulator
         g_time_accum = 0;
     }
+
 
 }
