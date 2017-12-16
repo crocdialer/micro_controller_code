@@ -1,14 +1,17 @@
-#include <ArduinoSound.h>
+#include <I2S.h>
 #include "ModeHelpers.h"
 #include "Timer.hpp"
 #include "LED_Path.h"
 #include "ModeHelpers.h"
 
 // create an amplitude analyzer to be used with the I2S input
-AmplitudeAnalyzer g_amplitude_analyzer;
+// AmplitudeAnalyzer g_amplitude_analyzer;
+
+#define ARM_MATH_CM0PLUS
+#include <arm_math.h>
 
 // update rate in Hz
-#define UPDATE_RATE 30
+#define UPDATE_RATE 25
 #define SERIAL_BUFSIZE 128
 
 char g_serial_buf[SERIAL_BUFSIZE];
@@ -50,6 +53,19 @@ LED_Path* g_path[g_num_paths];
 ModeHelper *g_mode_sinus = nullptr, *g_mode_colour = nullptr, *g_mode_current = nullptr;
 CompositeMode *g_mode_composite = nullptr;
 
+// sampling configuration
+using sample_t = int32_t;
+constexpr uint32_t g_bits_per_sample = 32;
+constexpr uint32_t g_sample_rate = 16000;
+
+// peak calculations
+uint32_t g_amplitude_min = 1, g_current_amplitude_max = 0, g_amplitude = 0;
+uint32_t g_decay_per_msec = 4000;
+
+float g_mic_lvl = 0.f;
+
+uint8_t g_sample_buffer[512];
+
 void blink_status_led()
 {
     digitalWrite(13, LOW);
@@ -58,12 +74,65 @@ void blink_status_led()
     delay(500);
 }
 
+inline int32_t calculate_amplitude(uint8_t* buffer, size_t num_bytes)
+{
+    sample_t analysis = 0;
+    if(g_bits_per_sample == 16){ arm_rms_q15((q15_t*)buffer, num_bytes / 2, (q15_t*)&analysis); }
+    else if(g_bits_per_sample == 32){ arm_rms_q31((q31_t*)buffer, num_bytes / 4, (q31_t*)&analysis); }
+    return analysis;
+}
+
+void on_i2s_receive()
+{
+    int num = I2S.read(g_sample_buffer, sizeof(g_sample_buffer));
+
+    if(num)
+    {
+        g_last_mic_reading = millis();
+        g_indicator = !g_indicator;
+
+        // amplitude calculation
+        g_amplitude = calculate_amplitude(g_sample_buffer, num);
+
+        // iterate samples
+        // int32_t *ptr = (int32_t*)g_sample_buffer, *end = (int32_t*)(g_sample_buffer + num);
+        // for(; ptr < end; ++ptr){ }
+
+        // // mean
+        // sample_t mean;
+        // if(g_bits_per_sample == 16){ arm_mean_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&mean); }
+        // else if(g_bits_per_sample == 32){ arm_mean_q31((q31_t*)g_sample_buffer, num / 4, (q31_t*)&mean); }
+        // g_amplitude = mean;
+    }
+}
+
 bool init_audio()
 {
-    g_last_mic_reading = 0;
-    
-     // setup the I2S audio input for 44.1 kHz with 32-bits per sample
-    return AudioInI2S.begin(16000, 32) && g_amplitude_analyzer.input(AudioInI2S);
+    bool ret = I2S.begin(I2S_PHILIPS_MODE, g_sample_rate, g_bits_per_sample);
+
+    // add the receiver callback
+    I2S.onReceive(on_i2s_receive);
+
+    // trigger a read to kick things off
+    I2S.read();
+
+    g_last_mic_reading = millis();
+    return ret;
+}
+
+void process_mic_input(uint32_t the_delta_time)
+{
+    // decay
+    const float decay_secs = 1.f;
+    float decay = 1.f / decay_secs * the_delta_time / 1000.f;
+    g_mic_lvl = max(0, g_mic_lvl - decay);
+
+    // read mic val
+    float v = map_value<float>(g_amplitude, g_amplitude_min, g_current_amplitude_max, 0.f, 1.f);
+    g_mic_lvl = max(g_mic_lvl, v);
+
+    // Run FFT on sample data.
+    // arm_cfft_radix4_instance_f32 fft_inst;
 }
 
 void setup()
@@ -103,24 +172,17 @@ void loop()
     // poll Timer objects
     for(uint32_t i = 0; i < g_num_timers; ++i){ g_timer[i].poll(); }
 
-    int amplitude = 0;
-
-    if(g_amplitude_analyzer.available())
+    if(g_last_time_stamp - g_last_mic_reading > 100)
     {
-        // read the new amplitude
-        amplitude = g_amplitude_analyzer.read();
-
-        g_indicator = !g_indicator;
-
-        // print out the amplititude to the serial monitor
-        if(amplitude){ Serial.println(amplitude); }
-
-        g_last_mic_reading = g_last_time_stamp;
-    }
-    else if(g_last_time_stamp - g_last_mic_reading > 100)
-    {
+        I2S.end();
         while(!init_audio()){ blink_status_led(); }
     }
+
+    // peak decay
+    g_current_amplitude_max -= g_current_amplitude_max * delta_time / 1000.f / 10.f;
+    g_current_amplitude_max = max(g_current_amplitude_max, g_amplitude_min);
+
+    Serial.println(g_amplitude);
 
     if(g_time_accum >= g_update_interval)
     {
@@ -128,16 +190,18 @@ void loop()
         digitalWrite(13, g_indicator);
         // g_indicator = !g_indicator;
 
+        // Serial.println(g_amplitude);
+
         for(uint8_t i = 0; i < g_num_paths; ++i)
         {
-            // g_path[i]->set_current_max(i / 8.f);
-            g_path[i]->update(g_time_accum);
+            uint32_t vol_index = 1;//g_path[i]->num_leds() * g_mic_lvl;
+            g_path[i]->set_current_max(vol_index);
             g_mode_current->process(g_path[i], g_time_accum);
+            g_path[i]->update(g_time_accum);
         }
-
         // clear time accumulator
         g_time_accum = 0;
     }
-
-
+    else{ delay(g_update_interval - g_time_accum); }
+    // delay(10);
 }
