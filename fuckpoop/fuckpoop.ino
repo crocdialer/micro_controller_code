@@ -57,10 +57,11 @@ CompositeMode *g_mode_composite = nullptr;
 using sample_t = int32_t;
 constexpr uint32_t g_bits_per_sample = 32;
 constexpr uint32_t g_sample_rate = 16000;
+sample_t g_variance = 0, g_mean = 0, g_peak_to_peak = 0;
 
 // peak calculations
-uint32_t g_amplitude_min = 1, g_current_amplitude_max = 0, g_amplitude = 0;
-uint32_t g_decay_per_msec = 4000;
+sample_t g_amplitude_min = 1, g_current_amplitude_max = 0, g_amplitude = 0;
+sample_t g_decay_per_msec = 4000;
 
 float g_mic_lvl = 0.f;
 
@@ -69,16 +70,16 @@ uint8_t g_sample_buffer[512];
 void blink_status_led()
 {
     digitalWrite(13, LOW);
-    delay(500);
+    delay(1000);
     digitalWrite(13, HIGH);
-    delay(500);
+    delay(1000);
 }
 
 inline int32_t calculate_amplitude(uint8_t* buffer, size_t num_bytes)
 {
     sample_t analysis = 0;
     if(g_bits_per_sample == 16){ arm_rms_q15((q15_t*)buffer, num_bytes / 2, (q15_t*)&analysis); }
-    else if(g_bits_per_sample == 32){ arm_rms_q31((q31_t*)buffer, num_bytes / 4, (q31_t*)&analysis); }
+    else if(g_bits_per_sample == 32){ arm_rms_q31((q31_t*)buffer, num_bytes / 4, &analysis); }
     return analysis;
 }
 
@@ -89,7 +90,7 @@ void on_i2s_receive()
     if(num)
     {
         g_last_mic_reading = millis();
-        g_indicator = !g_indicator;
+        g_indicator = false;
 
         // amplitude calculation
         g_amplitude = calculate_amplitude(g_sample_buffer, num);
@@ -98,11 +99,22 @@ void on_i2s_receive()
         // int32_t *ptr = (int32_t*)g_sample_buffer, *end = (int32_t*)(g_sample_buffer + num);
         // for(; ptr < end; ++ptr){ }
 
-        // // mean
+        // mean
         // sample_t mean;
-        // if(g_bits_per_sample == 16){ arm_mean_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&mean); }
-        // else if(g_bits_per_sample == 32){ arm_mean_q31((q31_t*)g_sample_buffer, num / 4, (q31_t*)&mean); }
-        // g_amplitude = mean;
+        // if(g_bits_per_sample == 16){ arm_mean_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&g_mean); }
+        // else if(g_bits_per_sample == 32){ arm_mean_q31((q31_t*)g_sample_buffer, num / 4, &g_mean); }
+
+        // variance
+        // sample_t variance;
+        // if(g_bits_per_sample == 16){ arm_var_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&g_variance); }
+        // else if(g_bits_per_sample == 32){ arm_var_q31((q31_t*)g_sample_buffer, num / 4, &g_variance); }
+
+        // peak to peak
+        uint32_t index;
+        sample_t min, max;
+        arm_min_q31((q31_t*)g_sample_buffer, num / 4, &min, &index);
+        arm_max_q31((q31_t*)g_sample_buffer, num / 4, &max, &index);
+        g_peak_to_peak = (max - min) >> 14;
     }
 }
 
@@ -122,14 +134,19 @@ bool init_audio()
 
 void process_mic_input(uint32_t the_delta_time)
 {
-    // decay
-    const float decay_secs = 1.f;
-    float decay = 1.f / decay_secs * the_delta_time / 1000.f;
+    // lvl decay
+    const float decay_secs = .6f;
+    float decay = the_delta_time / 1000.f / decay_secs;
     g_mic_lvl = max(0, g_mic_lvl - decay);
 
+    // peak decay
+    g_current_amplitude_max -= g_current_amplitude_max * the_delta_time / 1000.f / 10.f;
+    g_current_amplitude_max = max(g_peak_to_peak, g_current_amplitude_max);
+    g_current_amplitude_max = max(g_current_amplitude_max, 6710);
+
     // read mic val
-    float v = map_value<float>(g_amplitude, g_amplitude_min, g_current_amplitude_max, 0.f, 1.f);
-    g_mic_lvl = max(g_mic_lvl, v);
+    float v = map(g_peak_to_peak, 6700, g_current_amplitude_max, 0, 1000);
+    g_mic_lvl = clamp(max(g_mic_lvl, v / 1000.f), 0.f, 1.f);
 
     // Run FFT on sample data.
     // arm_cfft_radix4_instance_f32 fft_inst;
@@ -172,36 +189,35 @@ void loop()
     // poll Timer objects
     for(uint32_t i = 0; i < g_num_timers; ++i){ g_timer[i].poll(); }
 
+    // reinit audio if necessary
     if(g_last_time_stamp - g_last_mic_reading > 100)
     {
         I2S.end();
         while(!init_audio()){ blink_status_led(); }
     }
 
-    // peak decay
-    g_current_amplitude_max -= g_current_amplitude_max * delta_time / 1000.f / 10.f;
-    g_current_amplitude_max = max(g_current_amplitude_max, g_amplitude_min);
-
-    Serial.println(g_amplitude);
+    process_mic_input(delta_time);
+    Serial.println(g_peak_to_peak);
+    // Serial.println(g_mic_lvl);
 
     if(g_time_accum >= g_update_interval)
     {
         // flash red indicator LED
         digitalWrite(13, g_indicator);
-        // g_indicator = !g_indicator;
-
-        // Serial.println(g_amplitude);
 
         for(uint8_t i = 0; i < g_num_paths; ++i)
         {
-            uint32_t vol_index = 1;//g_path[i]->num_leds() * g_mic_lvl;
+            uint32_t vol_index = g_path[i]->num_leds() * g_mic_lvl;
             g_path[i]->set_current_max(vol_index);
             g_mode_current->process(g_path[i], g_time_accum);
             g_path[i]->update(g_time_accum);
         }
         // clear time accumulator
         g_time_accum = 0;
+
+        // reset status led
+        g_indicator = true;
     }
-    else{ delay(g_update_interval - g_time_accum); }
-    // delay(10);
+    // else{ delay(g_update_interval - g_time_accum); }
+    else{ delay(10); }
 }
