@@ -79,7 +79,7 @@ void loop()
 
     // show something
     // display_number(g_current_value);
-    display_number(millis() / 100);
+    display_number(millis() / 1000);
 }
 
 

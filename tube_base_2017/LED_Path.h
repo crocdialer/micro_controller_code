@@ -43,7 +43,7 @@ public:
 
     inline uint32_t num_leds() const{ return num_segments() * SEGMENT_LENGTH; }
     inline uint32_t num_segments() const{ return m_num_segments; };
-    inline Segment* segment(uint32_t the_index){ return m_segments[the_index]; };
+    Segment* segment(uint32_t the_index) const;
 
     void set_all_segments(uint32_t the_color);
     inline float brightness(){ return m_brightness; }

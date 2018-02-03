@@ -13,9 +13,10 @@
 static constexpr uint32_t g_num_known_networks = 3;
 static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
-    "egligeil2.4", "#LoftFlower!",
-    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
-    "iWay_Fiber_jz748", "92588963378762374925"
+    "whoopy", "senftoast",
+    "egligeil2.4", "#LoftFlower!"
+    // "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
+    // "iWay_Fiber_jz748", "92588963378762374925"
 };
 NetworkHelper* g_net_helper = NetworkHelper::get();
 
@@ -146,8 +147,8 @@ void loop()
         {
             for(uint8_t i = 0; i < g_num_paths; ++i)
             {
-                 g_path[i]->update(g_time_accum);
-                 g_mode_current->process(g_path[i], g_time_accum);
+                g_mode_current->process(g_path[i], g_time_accum);
+                g_path[i]->update(g_time_accum);
             }
         }
         // clear time accumulator
