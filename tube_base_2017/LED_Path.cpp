@@ -41,6 +41,13 @@ LED_Path::~LED_Path()
     }
 }
 
+Segment* LED_Path::segment(uint32_t the_index) const
+{
+    if(the_index < m_num_segments)
+        return m_segments[the_index];
+    return nullptr;
+};
+
 void LED_Path::clear()
 {
     memset(m_data, 0, num_leds() * BYTES_PER_PIXEL);
