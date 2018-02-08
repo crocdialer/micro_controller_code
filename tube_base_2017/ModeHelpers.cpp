@@ -206,7 +206,7 @@ void CompositeMode::reset(LED_Path* the_path)
     m_time_accum = m_trigger_time = 0;
     for(int i = 0; i < s_max_num_modes; ++i)
     {
-         if(m_mode_helpers[i]){ m_mode_helpers[i]->reset(the_path); } 
+         if(m_mode_helpers[i]){ m_mode_helpers[i]->reset(the_path); }
     }
 }
 

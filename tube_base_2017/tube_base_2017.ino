@@ -70,7 +70,7 @@ enum RunMode
 uint32_t g_run_mode = MODE_RUNNING;
 
 constexpr uint8_t g_num_paths = 1;
-constexpr uint8_t g_path_length = 6;
+constexpr uint8_t g_path_length = 7;
 const uint8_t g_led_pins[] = {11};
 
 LED_Path* g_path[g_num_paths];
@@ -202,21 +202,24 @@ template <typename T> void parse_line(T& the_device, char *the_line)
         uint32_t num_bytes = 0;
         if(arg_str){ num_bytes = atoi(arg_str); }
 
-        if(num_bytes)
+        for(size_t i = 0; i < g_num_paths; i++)
         {
             size_t bytes_read = 0;
+            size_t num_path_bytes = min(num_bytes, g_path[i]->num_bytes());
+            num_bytes -= num_path_bytes;
 
-            while(bytes_read < num_bytes)
+            while(bytes_read < num_path_bytes)
             {
-                bytes_read += the_device.readBytes((char*)g_path[0]->data() + bytes_read,
-                                                   num_bytes - bytes_read);
+                bytes_read += the_device.readBytes((char*)g_path[i]->data() + bytes_read,
+                                                   num_path_bytes - bytes_read);
             }
-            g_path[0]->strip()->show();
-            g_run_mode = MODE_STREAMING;
-
-            // start a timer to return <g_run_mode> to normal
-            g_timer[TIMER_RUNMODE].expires_from_now(2.f);
         }
+
+        for(size_t i = 0; i < g_num_paths; i++){ g_path[i]->strip()->show(); }
+        g_run_mode = MODE_STREAMING;
+
+        // start a timer to return <g_run_mode> to normal
+        g_timer[TIMER_RUNMODE].expires_from_now(2.f);
         return;
     }
     else if(strcmp(cmd_token, CMD_SEGMENT) == 0)

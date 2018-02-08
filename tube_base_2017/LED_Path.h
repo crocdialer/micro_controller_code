@@ -21,7 +21,7 @@ class Segment
 {
 public:
     Segment(uint8_t *the_data, uint32_t the_length);
-    inline uint32_t length(){return m_length; }
+    inline uint32_t length() const {return m_length; }
     inline uint32_t color() const { return m_color; }
     inline void set_color(uint32_t the_color){ m_color = the_color; }
     inline void set_active(bool b){ m_active = b; }
@@ -41,8 +41,8 @@ public:
     LED_Path(uint32_t the_pin, uint32_t the_num_segments);
     ~LED_Path();
 
-    inline uint32_t num_leds() const{ return num_segments() * SEGMENT_LENGTH; }
-    inline uint32_t num_segments() const{ return m_num_segments; };
+    inline uint32_t num_leds() const { return num_segments() * SEGMENT_LENGTH; }
+    inline uint32_t num_segments() const { return m_num_segments; };
     inline Segment* segment(uint32_t the_index){ return m_segments[the_index]; };
 
     void set_all_segments(uint32_t the_color);
@@ -53,9 +53,10 @@ public:
     void update(uint32_t the_delta_time);
 
     inline uint8_t* data() { return m_data; };
+    inline uint32_t num_bytes() const { return num_leds() * BYTES_PER_PIXEL; };
     inline LedType* strip() { return m_strip; }
 
-    inline uint32_t current_max(){ return m_current_max; }
+    inline uint32_t current_max() const{ return m_current_max; }
     inline void set_current_max(uint32_t the_max){ m_current_max = the_max; }
 
 private:

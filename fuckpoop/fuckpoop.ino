@@ -95,26 +95,25 @@ void on_i2s_receive()
         // amplitude calculation
         g_amplitude = calculate_amplitude(g_sample_buffer, num);
 
-        // iterate samples
-        // int32_t *ptr = (int32_t*)g_sample_buffer, *end = (int32_t*)(g_sample_buffer + num);
-        // for(; ptr < end; ++ptr){ }
-
         // mean
-        // sample_t mean;
-        // if(g_bits_per_sample == 16){ arm_mean_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&g_mean); }
-        // else if(g_bits_per_sample == 32){ arm_mean_q31((q31_t*)g_sample_buffer, num / 4, &g_mean); }
+        if(g_bits_per_sample == 16){ arm_mean_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&g_mean); }
+        else if(g_bits_per_sample == 32){ arm_mean_q31((q31_t*)g_sample_buffer, num / 4, &g_mean); }
 
         // variance
         // sample_t variance;
         // if(g_bits_per_sample == 16){ arm_var_q15((q15_t*)g_sample_buffer, num / 2, (q15_t*)&g_variance); }
         // else if(g_bits_per_sample == 32){ arm_var_q31((q31_t*)g_sample_buffer, num / 4, &g_variance); }
 
+        // iterate samples
+        // sample_t *ptr = (sample_t*)g_sample_buffer, *end = (sample_t*)(g_sample_buffer + num);
+        // for(; ptr < end; ++ptr){ ptr -= g_mean; }
+
         // peak to peak
         uint32_t index;
         sample_t min, max;
         arm_min_q31((q31_t*)g_sample_buffer, num / 4, &min, &index);
         arm_max_q31((q31_t*)g_sample_buffer, num / 4, &max, &index);
-        g_peak_to_peak = (max - min) >> 14;
+        g_peak_to_peak = abs(max - min);
     }
 }
 
@@ -163,6 +162,8 @@ void setup()
     // while(!Serial){ delay(10); }
     Serial.begin(115200);
 
+    while(!init_audio()){ blink_status_led(); }
+
     // init path objects with pin array
     for(uint8_t i = 0; i < g_num_paths; ++i)
     {
@@ -175,8 +176,6 @@ void setup()
     g_mode_current = g_mode_composite = new CompositeMode();
     g_mode_composite->add_mode(g_mode_colour);
     g_mode_composite->add_mode(g_mode_sinus);
-
-    while(!init_audio()){ blink_status_led(); }
 }
 
 void loop()
@@ -197,21 +196,22 @@ void loop()
     }
 
     process_mic_input(delta_time);
-    Serial.println(g_peak_to_peak);
+    // Serial.println(g_peak_to_peak);
     // Serial.println(g_mic_lvl);
+    Serial.println(g_amplitude);
 
     if(g_time_accum >= g_update_interval)
     {
         // flash red indicator LED
         digitalWrite(13, g_indicator);
 
-        for(uint8_t i = 0; i < g_num_paths; ++i)
-        {
-            uint32_t vol_index = g_path[i]->num_leds() * g_mic_lvl;
-            g_path[i]->set_current_max(vol_index);
-            g_mode_current->process(g_path[i], g_time_accum);
-            g_path[i]->update(g_time_accum);
-        }
+        // for(uint8_t i = 0; i < g_num_paths; ++i)
+        // {
+        //     uint32_t vol_index = g_path[i]->num_leds() * g_mic_lvl;
+        //     g_path[i]->set_current_max(vol_index);
+        //     g_mode_current->process(g_path[i], g_time_accum);
+        //     g_path[i]->update(g_time_accum);
+        // }
         // clear time accumulator
         g_time_accum = 0;
 
@@ -219,5 +219,5 @@ void loop()
         g_indicator = true;
     }
     // else{ delay(g_update_interval - g_time_accum); }
-    else{ delay(10); }
+    else{ delay(2); }
 }
