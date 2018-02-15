@@ -241,12 +241,19 @@ template <typename T> void parse_line(T& the_device, char *the_line)
         while((arg_str = strtok(nullptr, " ")))
         {
             int index = atoi(arg_str);
+            size_t path_idx = 0;
 
-            if(index >= 0 && index < g_path[0]->num_segments())
+            for(; path_idx < g_num_paths; path_idx++)
+            {
+                if(index < g_path[path_idx]->num_segments()){ break; }
+                index -= g_path[path_idx]->num_segments();
+            }
+
+            if(index >= 0 && index < g_path[path_idx]->num_segments())
             {
                 g_run_mode = MODE_DEBUG;
                 g_mode_current = g_mode_sinus;
-                Segment *s = g_path[0]->segment(index);
+                Segment *s = g_path[path_idx]->segment(index);
                 s->set_active(true);
                 s->set_color(ORANGE);
             }
