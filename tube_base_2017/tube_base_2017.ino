@@ -9,14 +9,15 @@
 #ifdef USE_NETWORK
 #include "NetworkHelper.h"
 
+// Ethernet MAC adress
+uint8_t g_mac_adress[6] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x69};
+
 // network SSID
 static constexpr uint32_t g_num_known_networks = 3;
 static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
     "whoopy", "senftoast",
     "egligeil2.4", "#LoftFlower!"
-    // "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
-    // "iWay_Fiber_jz748", "92588963378762374925"
 };
 NetworkHelper* g_net_helper = NetworkHelper::get();
 
@@ -70,9 +71,9 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_RUNNING;
 
-constexpr uint8_t g_num_paths = 1;
-constexpr uint8_t g_path_length = 7;
-const uint8_t g_led_pins[] = {11};
+constexpr uint8_t g_num_paths = 2;
+constexpr uint8_t g_path_lengths[] = {7, 7};
+const uint8_t g_led_pins[] = {11, 5};
 
 LED_Path* g_path[g_num_paths];
 ModeHelper *g_mode_sinus = nullptr, *g_mode_colour = nullptr, *g_mode_current = nullptr;
@@ -95,7 +96,7 @@ void setup()
     // init path objects with pin array
     for(uint8_t i = 0; i < g_num_paths; ++i)
     {
-         g_path[i] = new LED_Path(g_led_pins[i], g_path_length);
+         g_path[i] = new LED_Path(g_led_pins[i], g_path_lengths[i]);
     }
 
     // create ModeHelper objects
@@ -106,7 +107,8 @@ void setup()
     g_mode_composite->add_mode(g_mode_sinus);
 
 #ifdef USE_NETWORK
-    if(g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
+    if( g_net_helper->setup_ethernet(g_mac_adress) ||
+        g_net_helper->setup_wifi(g_wifi_known_networks, g_num_known_networks))
     {
         g_net_helper->set_tcp_listening_port(g_tcp_listening_port);
         g_timer[TIMER_UDP_BROADCAST].expires_from_now(g_udp_broadcast_interval);
@@ -228,9 +230,12 @@ template <typename T> void parse_line(T& the_device, char *the_line)
         const char* arg_str = nullptr;
 
         // disable all segments
-        for(uint32_t i = 0; i < g_path[0]->num_segments(); ++i)
+        for (size_t p = 0; p < g_num_paths; p++)
         {
-            g_path[0]->segment(i)->set_active(false);
+            for(uint32_t i = 0; i < g_path[p]->num_segments(); ++i)
+            {
+                g_path[p]->segment(i)->set_active(false);
+            }
         }
 
         while((arg_str = strtok(nullptr, " ")))
@@ -253,7 +258,7 @@ template <typename T> void parse_line(T& the_device, char *the_line)
                 break;
             }
         }
-        g_path[0]->update(0);
+        for(size_t p = 0; p < g_num_paths; p++){ g_path[p]->update(0); }
         return;
     }
     else if(strcmp(cmd_token, CMD_BRIGHTNESS) == 0)
