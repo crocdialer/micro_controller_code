@@ -15,10 +15,11 @@ const uint8_t NetworkHelper::s_default_mac[6] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0
 NetworkHelper* NetworkHelper::s_instance = nullptr;
 
 // private constructor
-NetworkHelper::NetworkHelper():
-m_wifi_status(WL_IDLE_STATUS)
+NetworkHelper::NetworkHelper()
 {
 #ifndef NO_WIFI
+    m_wifi_status = WL_IDLE_STATUS;
+
     //Configure pins for Adafruit ATWINC1500 Feather
     WiFi.setPins(8, 7, 4, 2);
 #endif
@@ -39,7 +40,6 @@ void NetworkHelper::send_udp_broadcast(const char* the_string, uint16_t the_port
         m_ethernet_udp.write(the_string);
         m_ethernet_udp.endPacket();
     }
-    else
 #endif
 
 #ifndef NO_WIFI

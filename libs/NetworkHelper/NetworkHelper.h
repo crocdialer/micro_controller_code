@@ -1,6 +1,7 @@
 #ifndef __WIFI_HELPER__
 #define __WIFI_HELPER__
-#define NO_ETHERNET
+// #define NO_ETHERNET
+#define NO_WIFI
 
 #ifndef NO_ETHERNET
 #include <EthernetServer.h>
