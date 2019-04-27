@@ -2,9 +2,9 @@
 #include "Timer.hpp"
 #include "device_id.h"
 
-#define USE_NETWORK
-#define NO_ETHERNET
-// #define NO_WIFI
+// #define USE_NETWORK
+// #define NO_ETHERNET
+#define NO_WIFI
 
 #ifdef USE_NETWORK
 #include "NetworkHelper.h"
@@ -17,6 +17,7 @@ static constexpr uint32_t g_num_known_networks = 3;
 static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
     "whoopy", "senftoast",
+    "Trendsetter", "trendsetter69",
     "egligeil2.4", "#LoftFlower!"
 };
 NetworkHelper* g_net_helper = NetworkHelper::get();
@@ -26,7 +27,7 @@ constexpr float g_udp_broadcast_interval = 2.f;
 uint16_t g_udp_broadcast_port = 55555;
 
 //TCP Server
-uint16_t g_tcp_listening_port = 33333;
+uint16_t g_tcp_listening_port = 44444;
 
 void send_udp_broadcast()
 {
@@ -91,7 +92,7 @@ void setup()
     digitalWrite(13, HIGH);
 
     // while(!Serial){ delay(10); }
-    Serial.begin(115200);
+    Serial.begin(2000000);
 
     // init path objects with pin array
     for(uint8_t i = 0; i < g_num_paths; ++i)
