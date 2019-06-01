@@ -63,6 +63,8 @@ kinski::Timer g_timer[g_num_timers];
 // to indicate update frequency
 bool g_indicator = false;
 
+bool g_use_indicator = false;
+
 //! define our run-modes here
 enum RunMode
 {
@@ -72,9 +74,9 @@ enum RunMode
 };
 uint32_t g_run_mode = MODE_RUNNING;
 
-constexpr uint8_t g_num_paths = 2;
-constexpr uint8_t g_path_lengths[] = {7, 7};
-const uint8_t g_led_pins[] = {11, 5};
+constexpr uint8_t g_num_paths = 1;
+constexpr uint8_t g_path_lengths[] = {1};
+const uint8_t g_led_pins[] = {5};
 
 LED_Path* g_path[g_num_paths];
 ModeHelper *g_mode_sinus = nullptr, *g_mode_colour = nullptr, *g_mode_current = nullptr;
@@ -85,11 +87,11 @@ void set_running(){ g_run_mode = MODE_RUNNING; }
 
 void setup()
 {
-    srand(analogRead(A7));
+    srand(analogRead(A0));
 
     // drives our status LED
     pinMode(13, OUTPUT);
-    digitalWrite(13, HIGH);
+    digitalWrite(13, 0);
 
     // while(!Serial){ delay(10); }
     Serial.begin(2000000);
@@ -134,7 +136,7 @@ void loop()
     if(g_time_accum >= g_update_interval)
     {
         // flash red indicator LED
-        digitalWrite(13, g_indicator);
+        if(g_use_indicator){ digitalWrite(13, g_indicator); }
         g_indicator = !g_indicator;
 
         // read debug inputs

@@ -32,8 +32,7 @@ uint8_t g_mac_adress[6] = {0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x69};
 static constexpr uint32_t g_num_known_networks = 2;
 static const char* g_wifi_known_networks[2 * g_num_known_networks] =
 {
-    "egligeil2.4", "#LoftFlower!",
-    "Sunrise_2.4GHz_BA25E8", "sJ4C257yyukZ",
+    "Loveboat69", "senftoast"
 };
 NetworkHelper* g_net_helper = NetworkHelper::get();
 

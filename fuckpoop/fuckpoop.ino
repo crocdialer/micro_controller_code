@@ -55,8 +55,8 @@ CompositeMode *g_mode_composite = nullptr;
 
 // sampling configuration
 using sample_t = int32_t;
-constexpr uint32_t g_bits_per_sample = 32;
-constexpr uint32_t g_sample_rate = 16000;
+constexpr uint32_t g_bits_per_sample = 16;
+constexpr uint32_t g_sample_rate = 22050;
 sample_t g_variance = 0, g_mean = 0, g_peak_to_peak = 0;
 
 // peak calculations
@@ -114,6 +114,9 @@ void on_i2s_receive()
         arm_min_q31((q31_t*)g_sample_buffer, num / 4, &min, &index);
         arm_max_q31((q31_t*)g_sample_buffer, num / 4, &max, &index);
         g_peak_to_peak = abs(max - min);
+
+        int16_t* ptr = (int16_t*)g_sample_buffer, *end = (int16_t*)(g_sample_buffer + sizeof(g_sample_buffer));
+        for(; ptr < end; ++ptr){ Serial.println(*ptr); }
     }
 }
 
@@ -159,7 +162,7 @@ void setup()
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
-    // while(!Serial){ delay(10); }
+    while(!Serial){ delay(10); }
     Serial.begin(115200);
 
     while(!init_audio()){ blink_status_led(); }
@@ -198,7 +201,7 @@ void loop()
     process_mic_input(delta_time);
     // Serial.println(g_peak_to_peak);
     // Serial.println(g_mic_lvl);
-    Serial.println(g_amplitude);
+    // Serial.println(g_amplitude);
 
     if(g_time_accum >= g_update_interval)
     {

@@ -25,7 +25,7 @@ bool g_indicator = false;
 // the number of attached SPI sensors
 const uint8_t g_max_num_sensors = 1;
 uint8_t g_num_sensors = 0;
-const uint32_t g_sensor_range = LIS3DH_RANGE_4_G;
+const lis3dh_range_t g_sensor_range = LIS3DH_RANGE_4_G;
 
 // the array of SPI chip-select pins
 const uint8_t g_cs_pins[] = {9, 10, 11, 12};
